@@ -39,6 +39,7 @@ import org.biojava3.core.sequence.io.ProteinSequenceCreator;
 import pt.uminho.sysbio.common.bioapis.externalAPI.ncbi.NcbiEFetchSequenceStub_API;
 import pt.uminho.sysbio.common.bioapis.externalAPI.ncbi.NcbiAPI;
 import pt.uminho.sysbio.common.database.connector.datatypes.MySQLMultiThread;
+import pt.uminho.sysbio.common.local.alignments.core.PairwiseSequenceAlignement.ThresholdType;
 import pt.uminho.sysbio.merlin.utilities.DatabaseProgressStatus;
 
 /**
@@ -72,6 +73,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	private Map<String, Integer> kegg_taxonomy_scores;
 	private double referenceTaxonomyThreshold;
 	private boolean compareToFullGenome;
+	private ThresholdType thresholdType;
 
 
 	/**
@@ -84,10 +86,11 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @param isNCBI
 	 * @param genome_dir
 	 * @param project_id
+	 * @param thresholdType
 	 * @throws Exception
 	 */
 	public Run_Similarity_Search(MySQLMultiThread msqlmt, Map<String, ProteinSequence> staticGenesSet, File tmhmm_file_dir, int minimum_number_of_helices,
-			double similarity_threshold, Method method, boolean isNCBI, File genome_dir, int project_id) throws Exception {
+			double similarity_threshold, Method method, boolean isNCBI, File genome_dir, int project_id, ThresholdType thresholdType) throws Exception {
 
 		List<File> tmhmmFiles = new ArrayList<File>();
 		if(tmhmm_file_dir.isDirectory()) {
@@ -133,6 +136,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		this.isUseAuthentication = false;
 		this.sequencesWithoutSimilarities = null;
 		this.project_id = project_id;
+		this.thresholdType = thresholdType;
 	}
 
 	/**
@@ -145,10 +149,11 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @param isNCBI
 	 * @param genome
 	 * @param project_id
+	 * @param thresholdType
 	 * @throws Exception
 	 */
 	public Run_Similarity_Search(MySQLMultiThread msqlmt, Map<String, ProteinSequence> staticGenesSet, File tmhmm_file_dir, int minimum_number_of_helices,
-			double similarity_threshold, Method method, boolean isNCBI, Map<String, ProteinSequence> genome, int project_id) throws Exception {
+			double similarity_threshold, Method method, boolean isNCBI, Map<String, ProteinSequence> genome, int project_id, ThresholdType thresholdType) throws Exception {
 
 		List<File> tmhmmFiles = new ArrayList<File>();
 		if(tmhmm_file_dir.isDirectory()) {
@@ -177,6 +182,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		this.isUseAuthentication = false;
 		this.sequencesWithoutSimilarities = null;
 		this.project_id = project_id;
+		this.thresholdType = thresholdType;
 	}
 
 	/**
@@ -192,11 +198,12 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @param querySize
 	 * @param counter
 	 * @param project_id
+	 * @param thresholdType
 	 * @throws Exception
 	 */
 	public Run_Similarity_Search(MySQLMultiThread msqlmt, Map<String, ProteinSequence> staticGenesSet, List<File> tmhmmFiles, int minimum_number_of_helices,
 			double similarity_threshold, Method method, boolean isNCBI, Map<String, ProteinSequence> querySequences, AtomicBoolean cancel, 
-			AtomicInteger querySize, AtomicInteger counter, int project_id) throws Exception {
+			AtomicInteger querySize, AtomicInteger counter, int project_id, ThresholdType thresholdType) throws Exception {
 
 		this.setCounter(counter);
 		this.setQuerySize(querySize);
@@ -213,6 +220,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		this.isUseAuthentication = false;
 		this.sequencesWithoutSimilarities = null;
 		this.project_id = project_id;
+		this.thresholdType = thresholdType;
 	}
 
 	/**
@@ -225,9 +233,10 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @param querySize
 	 * @param counter
 	 * @param project_id
+	 * @param thresholdType
 	 */
-	public Run_Similarity_Search(MySQLMultiThread msqlmt, Map<String, ProteinSequence> staticGenesSet, double similarity_threshold,
-			Method method, ConcurrentHashMap<String, ProteinSequence> querySequences, AtomicBoolean cancel, AtomicInteger querySize, AtomicInteger counter, int project_id) {
+	public Run_Similarity_Search(MySQLMultiThread msqlmt, Map<String, ProteinSequence> staticGenesSet, double similarity_threshold, Method method, 
+			ConcurrentHashMap<String, ProteinSequence> querySequences, AtomicBoolean cancel, AtomicInteger querySize, AtomicInteger counter, int project_id, ThresholdType thresholdType) {
 
 		this.setCounter(counter);
 		this.setQuerySize(querySize);
@@ -243,6 +252,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		this.isUseAuthentication = false;
 		this.sequencesWithoutSimilarities = null;
 		this.project_id = project_id;
+		this.thresholdType = thresholdType;
 	}
 
 	/**
@@ -259,57 +269,35 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		ConcurrentHashMap<String, ProteinSequence> all_sequences = new ConcurrentHashMap<String, ProteinSequence>();
 		Map<String, Integer> new_tmhmm_genes = new HashMap<String, Integer>();
 
-		NcbiEFetchSequenceStub_API fetchStub = null;
+		for(File tmhmm_file:tmhmmFiles) 
+			if(tmhmm_file.isFile())
+				tmhmm_genes.putAll(NcbiAPI.readTMHMMGenbankNCBI(tmhmm_file, 0));
 
 		if(isNCBI) {
 
-			fetchStub = new NcbiEFetchSequenceStub_API(50);
-		}
+			NcbiEFetchSequenceStub_API fetchStub = new NcbiEFetchSequenceStub_API(50);
+			Map<String, String> idLocus = fetchStub.getLocusFromID(tmhmm_genes.keySet(),100);
 
-		for(File tmhmm_file:tmhmmFiles) {
+			for (String id : idLocus.keySet()) {
 
-			if(tmhmm_file.isFile()) {
+				new_tmhmm_genes.put(idLocus.get(id), tmhmm_genes.get(id));
 
-				if(isNCBI) {
-
-					tmhmm_genes.putAll(NcbiAPI.readTMHMMGenbankNCBI(tmhmm_file, 0));
-					Map<String, String> idLocus = fetchStub.getLocusFromID(tmhmm_genes.keySet(),100);
-
-					for (String id : idLocus.keySet()) {
-
-						new_tmhmm_genes.put(idLocus.get(id), tmhmm_genes.get(id));
-
-						if(querySequences.containsKey(id)) {
-
-							new_sequences.put(idLocus.get(id), querySequences.get(id));
-						}
-						else {
-
-							throw new IOException("Wrong TMHMM file");
-						}
-					}
-					tmhmm_genes = new_tmhmm_genes;
-					all_sequences = new ConcurrentHashMap<String, ProteinSequence>(new_sequences);
-				}
-				else {
-
-					tmhmm_genes.putAll(NcbiAPI.readTMHMMGenbank(tmhmm_file, 0));
-
-					for (String id : querySequences.keySet()) {
-
-						if(tmhmm_genes.containsKey(id)) {
-
-							all_sequences.put(id,querySequences.get(id));
-						}
-					}
-				}
+				if(querySequences.containsKey(id))
+					new_sequences.put(idLocus.get(id), querySequences.get(id));
+				else
+					throw new IOException("Wrong TMHMM file");
 			}
+			tmhmm_genes = new_tmhmm_genes;
+			all_sequences = new ConcurrentHashMap<String, ProteinSequence>(new_sequences);
 		}
+		else
+			for (String id : querySequences.keySet())
+				if(tmhmm_genes.containsKey(id))
+					all_sequences.put(id,querySequences.get(id));
 
-		if(tmhmm_genes.size()==0) {
 
+		if(tmhmm_genes.size()==0)
 			throw new IOException ("Verify tmhmm files path!");
-		}
 
 		for(String locus_tag:new HashSet<String>(all_sequences.keySet())) {
 
@@ -356,7 +344,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 			for(int i=0; i<numberOfCores; i++) {
 
 				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, this.staticGenesSet, queryArray, msqlmt, 
-						similarity_threshold,tmhmm_genes, locus_ids, this.counter, this.cancel, AlignmentPurpose.Transport);
+						similarity_threshold,tmhmm_genes, locus_ids, this.counter, this.cancel, AlignmentPurpose.TRANSPORT, this.thresholdType);
 
 				((PairwiseSequenceAlignement) lc).addObserver(this); 
 				Thread thread = new Thread(lc);
@@ -408,7 +396,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 
 			if(this.sequencesWithoutSimilarities==null) {
 
-				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty()) 					
+				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty())
 					ec_number_annotations.keySet().retainAll(this.annotatedGenes);
 
 				if(!recursive) {
@@ -434,7 +422,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 			for(int i=0; i<numberOfCores; i++) {
 
 				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ec_number_annotations, queryArray,  msqlmt, 
-						similarity_threshold, null, null, this.counter, this.cancel, AlignmentPurpose.Orthologs);
+						similarity_threshold, null, null, this.counter, this.cancel, AlignmentPurpose.ORTHOLOGS, this.thresholdType);
 				((PairwiseSequenceAlignement) lc).setSequencesWithoutSimilarities(this.sequencesWithoutSimilarities);
 				((PairwiseSequenceAlignement) lc).setEc_number(this.ec_number);
 				((PairwiseSequenceAlignement) lc).setModules(this.modules);
@@ -579,8 +567,9 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 */
 	public static enum AlignmentPurpose {
 
-		Transport,
-		Orthologs
+		TRANSPORT,
+		ORTHOLOGS,
+		OTHER
 	}
 
 	/**
@@ -785,32 +774,6 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		this.processedGenes = processedGenes;
 	}
 
-	//	/**
-	//	 * @param args
-	//	 * @throws Exception 
-	//	 * @throws IOException 
-	//	 * @throws MalformedURLException 
-	//	 */
-	//	public static void main(String[] args) throws MalformedURLException, IOException, Exception {
-	//
-	//		MySQLMultiThread msqlmt = new MySQLMultiThread("localhost","3306","test_transporters","root","");
-	//		boolean isncbi=true;
-	//		Run_Similarity_Search run_Similarity_Search = new Run_Similarity_Search(
-	//				msqlmt,
-	//				Run_Similarity_Search.set_TCDB("http://www.tcdb.org/public/tcdb"), 
-	//				new File("../transport_systems/test/tmhmm"), //dir tmhmm
-	//				1,
-	//				0.10,
-	//				Method.SmithWaterman,
-	//				isncbi,
-	//				new File("../transport_systems/test") // dir genome
-	//				);
-	//
-	//		run_Similarity_Search.run_TransportSearch();
-	//
-	//		String similaritiesFile = "../transport_systems/test/tmhmm/simfiletest"; // ficheiro necessário para próxima etapa
-	//		Run_Similarity_Search.makeFile(similaritiesFile,msqlmt);
-	//	}
 
 	/**
 	 * @param annotatedGenes
@@ -915,7 +878,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		Connection conn = this.msqlmt.openConnection();
 		Statement statement = conn.createStatement();
 
-		ResultSet rs = statement.executeQuery("SELECT locus_tag FROM genes WHERE status <> 'PROCESSING'");
+		ResultSet rs = statement.executeQuery("SELECT locus_tag FROM sw_reports WHERE status <> 'PROCESSING'");
 
 		while(rs.next()) {
 
