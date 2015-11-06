@@ -36,7 +36,6 @@ import org.biojava3.core.sequence.io.FastaReader;
 import org.biojava3.core.sequence.io.GenericFastaHeaderParser;
 import org.biojava3.core.sequence.io.ProteinSequenceCreator;
 
-import pt.uminho.sysbio.common.bioapis.externalAPI.ncbi.NcbiEFetchSequenceStub_API;
 import pt.uminho.sysbio.common.bioapis.externalAPI.ncbi.NcbiAPI;
 import pt.uminho.sysbio.common.database.connector.datatypes.MySQLMultiThread;
 import pt.uminho.sysbio.common.local.alignments.core.PairwiseSequenceAlignement.ThresholdType;
@@ -74,6 +73,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	private double referenceTaxonomyThreshold;
 	private boolean compareToFullGenome;
 	private ThresholdType thresholdType;
+	private Map<String, String> idLocus;
 
 
 	/**
@@ -87,10 +87,11 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @param genome_dir
 	 * @param project_id
 	 * @param thresholdType
+	 * @param idLocus
 	 * @throws Exception
 	 */
 	public Run_Similarity_Search(MySQLMultiThread msqlmt, Map<String, ProteinSequence> staticGenesSet, File tmhmm_file_dir, int minimum_number_of_helices,
-			double similarity_threshold, Method method, boolean isNCBI, File genome_dir, int project_id, ThresholdType thresholdType) throws Exception {
+			double similarity_threshold, Method method, boolean isNCBI, File genome_dir, int project_id, ThresholdType thresholdType, Map<String, String> idLocus) throws Exception {
 
 		List<File> tmhmmFiles = new ArrayList<File>();
 		if(tmhmm_file_dir.isDirectory()) {
@@ -150,10 +151,11 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @param genome
 	 * @param project_id
 	 * @param thresholdType
+	 * @param idLocus
 	 * @throws Exception
 	 */
 	public Run_Similarity_Search(MySQLMultiThread msqlmt, Map<String, ProteinSequence> staticGenesSet, File tmhmm_file_dir, int minimum_number_of_helices,
-			double similarity_threshold, Method method, boolean isNCBI, Map<String, ProteinSequence> genome, int project_id, ThresholdType thresholdType) throws Exception {
+			double similarity_threshold, Method method, boolean isNCBI, Map<String, ProteinSequence> genome, int project_id, ThresholdType thresholdType, Map<String, String> idLocus) throws Exception {
 
 		List<File> tmhmmFiles = new ArrayList<File>();
 		if(tmhmm_file_dir.isDirectory()) {
@@ -199,11 +201,12 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @param counter
 	 * @param project_id
 	 * @param thresholdType
+	 * @param idLocus
 	 * @throws Exception
 	 */
 	public Run_Similarity_Search(MySQLMultiThread msqlmt, Map<String, ProteinSequence> staticGenesSet, List<File> tmhmmFiles, int minimum_number_of_helices,
 			double similarity_threshold, Method method, boolean isNCBI, Map<String, ProteinSequence> querySequences, AtomicBoolean cancel, 
-			AtomicInteger querySize, AtomicInteger counter, int project_id, ThresholdType thresholdType) throws Exception {
+			AtomicInteger querySize, AtomicInteger counter, int project_id, ThresholdType thresholdType, Map<String, String> idLocus) throws Exception {
 
 		this.setCounter(counter);
 		this.setQuerySize(querySize);
@@ -221,6 +224,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		this.sequencesWithoutSimilarities = null;
 		this.project_id = project_id;
 		this.thresholdType = thresholdType;
+		this.idLocus = idLocus;
 	}
 
 	/**
@@ -274,9 +278,6 @@ public class Run_Similarity_Search extends Observable implements Observer {
 				tmhmm_genes.putAll(NcbiAPI.readTMHMMGenbankNCBI(tmhmm_file, 0));
 
 		if(isNCBI) {
-
-			NcbiEFetchSequenceStub_API fetchStub = new NcbiEFetchSequenceStub_API(50);
-			Map<String, String> idLocus = fetchStub.getLocusFromID(tmhmm_genes.keySet(),100);
 
 			for (String id : idLocus.keySet()) {
 
