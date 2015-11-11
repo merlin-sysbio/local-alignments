@@ -274,13 +274,17 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		Map<String, Integer> new_tmhmm_genes = new HashMap<String, Integer>();
 
 		for(File tmhmm_file:tmhmmFiles) 
-			if(tmhmm_file.isFile())
-				tmhmm_genes.putAll(NcbiAPI.readTMHMMGenbankNCBI(tmhmm_file, 0));
+			if(tmhmm_file.isFile()) {
+				if(isNCBI)
+					tmhmm_genes.putAll(NcbiAPI.readTMHMMGenbankNCBI(tmhmm_file, 0));
+				else
+					tmhmm_genes.putAll(NcbiAPI.readTMHMMGenbank(tmhmm_file, 0));
+			}
 
 		if(isNCBI) {
 
 			for (String id : idLocus.keySet()) {
-
+				
 				new_tmhmm_genes.put(idLocus.get(id), tmhmm_genes.get(id));
 
 				if(querySequences.containsKey(id))
