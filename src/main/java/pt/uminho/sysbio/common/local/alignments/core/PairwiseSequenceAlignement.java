@@ -230,10 +230,8 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 				else if(this.thresholdType.equals(ThresholdType.SIMILARITY))
 					score = similarityScore;
 
-				if(this.numberOfHelicesMap.get(query)>5) {
-
+				if(this.numberOfHelicesMap.get(query)>5)
 					helicesDependentSimilarity=(1-((this.numberOfHelicesMap.get(query)/2-2)*0.1))*this.threshold;
-				}
 
 				if(score>helicesDependentSimilarity && score>(this.threshold/2)) {
 

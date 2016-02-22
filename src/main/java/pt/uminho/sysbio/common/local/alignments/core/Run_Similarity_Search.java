@@ -336,10 +336,9 @@ public class Run_Similarity_Search extends Observable implements Observer {
 			int numberOfCores = Runtime.getRuntime().availableProcessors();
 			//int numberOfCores = new Double(Runtime.getRuntime().availableProcessors()*1.5).intValue();
 
-			if(all_sequences.keySet().size()<numberOfCores) {
-
+			if(all_sequences.keySet().size()<numberOfCores)
 				numberOfCores=all_sequences.keySet().size();
-			}
+
 			System.out.println("number Of threads: "+numberOfCores);
 
 			this.querySize.set(new Integer(all_sequences.size()));
