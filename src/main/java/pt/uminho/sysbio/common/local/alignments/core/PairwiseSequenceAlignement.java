@@ -17,18 +17,17 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.biojava3.alignment.NeedlemanWunsch;
-import org.biojava3.alignment.SimpleGapPenalty;
-import org.biojava3.alignment.SimpleSubstitutionMatrix;
-import org.biojava3.alignment.SmithWaterman;
-import org.biojava3.alignment.template.AbstractPairwiseSequenceAligner;
-import org.biojava3.alignment.template.GapPenalty;
-import org.biojava3.alignment.template.SubstitutionMatrix;
-import org.biojava3.core.sequence.ProteinSequence;
-import org.biojava3.core.sequence.compound.AminoAcidCompound;
-import org.biojava3.core.sequence.compound.AminoAcidCompoundSet;
-import org.biojava3.core.sequence.template.CompoundSet;
-import org.biojava3.core.sequence.template.Sequence;
+import org.biojava.nbio.alignment.NeedlemanWunsch;
+import org.biojava.nbio.alignment.SimpleGapPenalty;
+import org.biojava.nbio.alignment.SimpleSubstitutionMatrix;
+import org.biojava.nbio.alignment.SmithWaterman;
+import org.biojava.nbio.alignment.template.AbstractPairwiseSequenceAligner;
+import org.biojava.nbio.alignment.template.GapPenalty;
+import org.biojava.nbio.alignment.template.SubstitutionMatrix;
+import org.biojava.nbio.core.sequence.ProteinSequence;
+import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
+import org.biojava.nbio.core.sequence.compound.AminoAcidCompoundSet;
+import org.biojava.nbio.core.sequence.template.CompoundSet;
 
 import pt.uminho.sysbio.common.database.connector.datatypes.MySQLMultiThread;
 import pt.uminho.sysbio.common.local.alignments.core.Run_Similarity_Search.AlignmentPurpose;
@@ -186,7 +185,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 	 */
 	private void getSimilarityTransport(String query,Connection conn) throws SQLException {
 
-		Sequence<AminoAcidCompound> querySequence= this.concurrentQueryMap.get(query);
+		ProteinSequence querySequence= this.concurrentQueryMap.get(query);
 		int seqLength = querySequence.getLength();
 		Matrix matrix;
 		short gapOpenPenalty=10, gapExtensionPenalty=1;
@@ -197,7 +196,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 		if(seqLength<85){matrix=Matrix.BLOSUM80;}
 		else{matrix=Matrix.BLOSUM62;}
 
-		AbstractPairwiseSequenceAligner<Sequence<AminoAcidCompound>,AminoAcidCompound> alignmentMethod;
+		AbstractPairwiseSequenceAligner<ProteinSequence,AminoAcidCompound> alignmentMethod;
 		GapPenalty gp = new SimpleGapPenalty(gapOpenPenalty ,gapExtensionPenalty);
 		CompoundSet<AminoAcidCompound> aa = new AminoAcidCompoundSet();
 
@@ -205,7 +204,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 		SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd,matrix.getPath());
 
 		double helicesDependentSimilarity=this.threshold;
-		Sequence<AminoAcidCompound> tcdbAAsequence=null;
+		ProteinSequence tcdbAAsequence=null;
 		
 		for(String tcdbRecord: this.staticSubjectMap.keySet()) {
 
@@ -214,9 +213,9 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 				tcdbAAsequence = this.staticSubjectMap.get(tcdbRecord);
 
 				if(this.method.equals(Method.SmithWaterman))
-					alignmentMethod=new SmithWaterman<Sequence<AminoAcidCompound>,AminoAcidCompound>(querySequence, tcdbAAsequence, gp, sb);
+					alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(querySequence, tcdbAAsequence, gp, sb);
 				else
-					alignmentMethod=new NeedlemanWunsch<Sequence<AminoAcidCompound>,AminoAcidCompound>(querySequence, tcdbAAsequence, gp, sb);
+					alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(querySequence, tcdbAAsequence, gp, sb);
 
 				double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
 				double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
@@ -318,7 +317,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 
 			if(locusTags.isEmpty()) {
 
-				Sequence<AminoAcidCompound> querySequence= this.concurrentQueryMap.get(query);
+				ProteinSequence querySequence= this.concurrentQueryMap.get(query);
 				int seqLength = querySequence.getLength();
 				Matrix matrix;
 				short gapOpenPenalty=10, gapExtensionPenalty=1;
@@ -326,14 +325,14 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 				if(seqLength<85){matrix=Matrix.BLOSUM80;}
 				else{matrix=Matrix.BLOSUM62;}
 
-				AbstractPairwiseSequenceAligner<Sequence<AminoAcidCompound>,AminoAcidCompound> alignmentMethod;
+				AbstractPairwiseSequenceAligner<ProteinSequence,AminoAcidCompound> alignmentMethod;
 				GapPenalty gp = new SimpleGapPenalty(gapOpenPenalty ,gapExtensionPenalty);
 				CompoundSet<AminoAcidCompound> aa = new AminoAcidCompoundSet();
 
 				Reader rd = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(matrix.getPath()));
 				SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd,matrix.getPath());
 
-				Sequence<AminoAcidCompound> genomeAAsequence=null;
+				ProteinSequence genomeAAsequence=null;
 
 				double threshold = this.threshold;
 
@@ -352,9 +351,9 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 							genomeAAsequence = this.staticSubjectMap.get(genome);
 
 							if(this.method.equals(Method.SmithWaterman))
-								alignmentMethod=new SmithWaterman<Sequence<AminoAcidCompound>,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
+								alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
 							else
-								alignmentMethod=new NeedlemanWunsch<Sequence<AminoAcidCompound>,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
+								alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
 
 							double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
 							double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
@@ -431,7 +430,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 			String query_org = query_array [0].trim();
 			//String queryLocus = query_array[1].trim();
 
-			Sequence<AminoAcidCompound> querySequence= this.concurrentQueryMap.get(query);
+			ProteinSequence querySequence= this.concurrentQueryMap.get(query);
 			int seqLength = querySequence.getLength();
 			Matrix matrix;
 			short gapOpenPenalty=10, gapExtensionPenalty=1;
@@ -439,14 +438,14 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 			if(seqLength<85){matrix=Matrix.BLOSUM80;}
 			else{matrix=Matrix.BLOSUM62;}
 
-			AbstractPairwiseSequenceAligner<Sequence<AminoAcidCompound>,AminoAcidCompound> alignmentMethod;
+			AbstractPairwiseSequenceAligner<ProteinSequence,AminoAcidCompound> alignmentMethod;
 			GapPenalty gp = new SimpleGapPenalty(gapOpenPenalty ,gapExtensionPenalty);
 			CompoundSet<AminoAcidCompound> aa = new AminoAcidCompoundSet();
 
 			Reader rd = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(matrix.getPath()));
 			SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd,matrix.getPath());
 
-			Sequence<AminoAcidCompound> genomeAAsequence=null;
+			ProteinSequence genomeAAsequence=null;
 
 			double threshold = this.threshold;
 
@@ -463,9 +462,9 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 					genomeAAsequence = this.staticSubjectMap.get(genome);
 
 					if(this.method.equals(Method.SmithWaterman))
-						alignmentMethod=new SmithWaterman<Sequence<AminoAcidCompound>,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
+						alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
 					else
-						alignmentMethod=new NeedlemanWunsch<Sequence<AminoAcidCompound>,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
+						alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
 					
 //					System.out.println(querySequence);
 //					System.out.println(genomeAAsequence);

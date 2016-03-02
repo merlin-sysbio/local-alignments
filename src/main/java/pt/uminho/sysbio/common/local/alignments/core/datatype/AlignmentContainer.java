@@ -20,7 +20,7 @@ public class AlignmentContainer {
 	private double similarityLength;
 	private double queryLength, targetLength;
 	private double score, maxScore, minScore;
-	private short[][][] scoreMatrix;
+	private int[][][] scoreMatrix;
 	
 	
 	/**
@@ -343,7 +343,7 @@ public class AlignmentContainer {
 	/**
 	 * @param scoreMatrix
 	 */
-	public void setScoreMatrix(short[][][] scoreMatrix) {
+	public void setScoreMatrix(int[][][] scoreMatrix) {
 		
 		this.scoreMatrix = scoreMatrix;
 	}
@@ -351,7 +351,7 @@ public class AlignmentContainer {
 	/**
 	 * @return
 	 */
-	public short[][][] getScoreMatrix() {
+	public int[][][] getScoreMatrix() {
 		
 		return this.scoreMatrix;
 	}

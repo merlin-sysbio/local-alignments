@@ -29,12 +29,12 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.biojava3.core.sequence.ProteinSequence;
-import org.biojava3.core.sequence.compound.AminoAcidCompound;
-import org.biojava3.core.sequence.compound.AminoAcidCompoundSet;
-import org.biojava3.core.sequence.io.FastaReader;
-import org.biojava3.core.sequence.io.GenericFastaHeaderParser;
-import org.biojava3.core.sequence.io.ProteinSequenceCreator;
+import org.biojava.nbio.core.sequence.ProteinSequence;
+import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
+import org.biojava.nbio.core.sequence.compound.AminoAcidCompoundSet;
+import org.biojava.nbio.core.sequence.io.FastaReader;
+import org.biojava.nbio.core.sequence.io.GenericFastaHeaderParser;
+import org.biojava.nbio.core.sequence.io.ProteinSequenceCreator;
 
 import pt.uminho.sysbio.common.bioapis.externalAPI.ncbi.NcbiAPI;
 import pt.uminho.sysbio.common.database.connector.datatypes.MySQLMultiThread;
