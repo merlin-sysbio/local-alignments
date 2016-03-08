@@ -17,12 +17,13 @@
 		<pt.uminho.sysbio.version>0.0.1-SNAPSHOT</pt.uminho.sysbio.version>
 	</properties>
 	<repositories>
-		<repository>
+ 	    <repository>
 			<id>nexus</id>
-			<name>nexus-biosystems-server</name>
-			<url>http://192.168.1.99/nexus/content/groups/public/</url>
-		</repository>
-	</repositories>
+			<name>Nexus BioSystems Server</name>
+			<!-- <url>http://192.168.1.99/nexus/content/groups/public/</url> -->
+			<url>http://193.137.11.210/nexus/content/groups/public/</url>
+		</repository> 
+  </repositories> 
 
 	<!-- <build> <sourceDirectory>D:\workspaces\maven\local-alignments\src</sourceDirectory> 
 		<scriptSourceDirectory>D:\workspaces\maven\local-alignments\src\main\scripts</scriptSourceDirectory> 
@@ -37,10 +38,10 @@
 				<artifactId>nexus-staging-maven-plugin</artifactId>
 				<version>1.6.6</version>
 				<extensions>true</extensions>
-				<configuration>
+				<!-- <configuration>
 					<serverId>watson</serverId>
-					<nexusUrl>http://192.168.1.99/nexus/</nexusUrl>
-				</configuration>
+					<nexusUrl>http://193.137.11.210/nexus/</nexusUrl>
+				</configuration> -->
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
