@@ -449,7 +449,8 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 
 			double threshold = this.threshold;
 
-			if(this.kegg_taxonomy_scores.get(query_org)>=this.referenceTaxonomyScore) {
+			if(this.kegg_taxonomy_scores.containsKey(query_org) && 
+					this.kegg_taxonomy_scores.get(query_org)>=this.referenceTaxonomyScore) {
 
 				System.out.println("Using reference taxonomy:\t"+this.referenceTaxonomyScore+"\tthreshold\t"+this.referenceTaxonomyThreshold);
 				threshold = this.referenceTaxonomyThreshold;
@@ -469,7 +470,12 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 //					System.out.println(querySequence);
 //					System.out.println(genomeAAsequence);
 //					System.out.println(alignmentMethod);
+//					System.out.println(querySequence.getOriginalHeader());
+//					System.out.println(alignmentMethod.getPair().getNumSimilars());
+//					System.out.println(alignmentMethod.getPair().getNumIdenticals());
+//					System.out.println(alignmentMethod.getPair().getLength());
 //					System.out.println(alignmentMethod.getSimilarity());
+					
 
 					double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()));
 					double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
@@ -777,7 +783,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 	 *
 	 */
 	public static enum Matrix {
-
+		
 		BLOSUM62 ("blosum62.txt"),
 		PAM30 ("pam30.txt"),
 		PAM70 ("pam70.txt"),
