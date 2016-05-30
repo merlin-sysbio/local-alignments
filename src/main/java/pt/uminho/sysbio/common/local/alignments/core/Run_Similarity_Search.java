@@ -57,7 +57,6 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	private int minimum_number_of_helices;
 	private double similarity_threshold;
 	private Method method;
-	private boolean isNCBI;
 	private Map<String, ProteinSequence> querySequences;
 	private boolean isUseProxy, isUseAuthentication;
 	private String host, port, user, pass;
@@ -73,7 +72,6 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	private double referenceTaxonomyThreshold;
 	private boolean compareToFullGenome;
 	private ThresholdType thresholdType;
-	private Map<String, String> idLocus;
 
 
 	/**
@@ -83,7 +81,6 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @param minimum_number_of_helices
 	 * @param similarity_threshold
 	 * @param method
-	 * @param isNCBI
 	 * @param genome_dir
 	 * @param project_id
 	 * @param thresholdType
@@ -91,7 +88,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @throws Exception
 	 */
 	public Run_Similarity_Search(MySQLMultiThread msqlmt, Map<String, ProteinSequence> staticGenesSet, File tmhmm_file_dir, int minimum_number_of_helices,
-			double similarity_threshold, Method method, boolean isNCBI, File genome_dir, int project_id, ThresholdType thresholdType, Map<String, String> idLocus) throws Exception {
+			double similarity_threshold, Method method, File genome_dir, int project_id, ThresholdType thresholdType, Map<String, String> idLocus) throws Exception {
 
 		List<File> tmhmmFiles = new ArrayList<File>();
 		if(tmhmm_file_dir.isDirectory()) {
@@ -131,7 +128,6 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		this.minimum_number_of_helices = minimum_number_of_helices;
 		this.similarity_threshold = similarity_threshold;
 		this.method = method; 
-		this.isNCBI = isNCBI;
 		this.querySequences = querySequences;
 		this.isUseProxy = false;
 		this.isUseAuthentication = false;
@@ -147,7 +143,6 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @param minimum_number_of_helices
 	 * @param similarity_threshold
 	 * @param method
-	 * @param isNCBI
 	 * @param genome
 	 * @param project_id
 	 * @param thresholdType
@@ -155,19 +150,14 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @throws Exception
 	 */
 	public Run_Similarity_Search(MySQLMultiThread msqlmt, Map<String, ProteinSequence> staticGenesSet, File tmhmm_file_dir, int minimum_number_of_helices,
-			double similarity_threshold, Method method, boolean isNCBI, Map<String, ProteinSequence> genome, int project_id, ThresholdType thresholdType, Map<String, String> idLocus) throws Exception {
+			double similarity_threshold, Method method, Map<String, ProteinSequence> genome, int project_id, ThresholdType thresholdType, Map<String, String> idLocus) throws Exception {
 
 		List<File> tmhmmFiles = new ArrayList<File>();
-		if(tmhmm_file_dir.isDirectory()) {
-
-			for(File tmhmm_file:tmhmm_file_dir.listFiles()) {
-
-				if(tmhmm_file.isFile()) {
-
+		
+		if(tmhmm_file_dir.isDirectory())
+			for(File tmhmm_file:tmhmm_file_dir.listFiles())
+				if(tmhmm_file.isFile())
 					tmhmmFiles.add(tmhmm_file);
-				}
-			}
-		}
 
 		this.setCounter(new AtomicInteger(0));
 		this.setQuerySize(new AtomicInteger(0));
@@ -178,7 +168,6 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		this.minimum_number_of_helices = minimum_number_of_helices;
 		this.similarity_threshold = similarity_threshold;
 		this.method = method; 
-		this.isNCBI = isNCBI;
 		this.querySequences = genome;
 		this.isUseProxy = false;
 		this.isUseAuthentication = false;
@@ -194,19 +183,17 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @param minimum_number_of_helices
 	 * @param similarity_threshold
 	 * @param method
-	 * @param isNCBI
 	 * @param querySequences
 	 * @param cancel
 	 * @param querySize
 	 * @param counter
 	 * @param project_id
 	 * @param thresholdType
-	 * @param idLocus
 	 * @throws Exception
 	 */
 	public Run_Similarity_Search(MySQLMultiThread msqlmt, Map<String, ProteinSequence> staticGenesSet, List<File> tmhmmFiles, int minimum_number_of_helices,
-			double similarity_threshold, Method method, boolean isNCBI, Map<String, ProteinSequence> querySequences, AtomicBoolean cancel, 
-			AtomicInteger querySize, AtomicInteger counter, int project_id, ThresholdType thresholdType, Map<String, String> idLocus) throws Exception {
+			double similarity_threshold, Method method, Map<String, ProteinSequence> querySequences, AtomicBoolean cancel, 
+			AtomicInteger querySize, AtomicInteger counter, int project_id, ThresholdType thresholdType) throws Exception {
 
 		this.setCounter(counter);
 		this.setQuerySize(querySize);
@@ -217,14 +204,12 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		this.minimum_number_of_helices = minimum_number_of_helices;
 		this.similarity_threshold = similarity_threshold;
 		this.method = method; 
-		this.isNCBI = isNCBI;
 		this.querySequences = querySequences;
 		this.isUseProxy = false;
 		this.isUseAuthentication = false;
 		this.sequencesWithoutSimilarities = null;
 		this.project_id = project_id;
 		this.thresholdType = thresholdType;
-		this.idLocus = idLocus;
 	}
 
 	/**
@@ -269,60 +254,38 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		this.setProcessed(false);
 		ConcurrentHashMap<String, String> locus_ids = new ConcurrentHashMap<String, String>();
 		Map<String, Integer> tmhmm_genes = new ConcurrentHashMap<String, Integer>();
-		Map<String, ProteinSequence> new_sequences = new HashMap<String, ProteinSequence>();
 		ConcurrentHashMap<String, ProteinSequence> all_sequences = new ConcurrentHashMap<String, ProteinSequence>();
-		Map<String, Integer> new_tmhmm_genes = new HashMap<String, Integer>();
 
 		for(File tmhmm_file:tmhmmFiles) 
-			if(tmhmm_file.isFile()) {
-				if(isNCBI)
-					tmhmm_genes.putAll(NcbiAPI.readTMHMMGenbankNCBI(tmhmm_file, 0));
-				else
-					tmhmm_genes.putAll(NcbiAPI.readTMHMMGenbank(tmhmm_file, 0));
-			}
-
-		if(isNCBI) {
-
-			for (String id : idLocus.keySet()) {
-				
-				new_tmhmm_genes.put(idLocus.get(id), tmhmm_genes.get(id));
-
-				if(querySequences.containsKey(id))
-					new_sequences.put(idLocus.get(id), querySequences.get(id));
-				else
-					throw new IOException("Wrong TMHMM file");
-			}
-			tmhmm_genes = new_tmhmm_genes;
-			all_sequences = new ConcurrentHashMap<String, ProteinSequence>(new_sequences);
-		}
-		else
-			for (String id : querySequences.keySet())
-				if(tmhmm_genes.containsKey(id))
-					all_sequences.put(id,querySequences.get(id));
-
-
+			if(tmhmm_file.isFile())
+				tmhmm_genes.putAll(NcbiAPI.readTMHMMGenbank(tmhmm_file, 0));
+		
+		for (String id : querySequences.keySet())
+			if(tmhmm_genes.containsKey(id))
+				all_sequences.put(id,querySequences.get(id));
+		
 		if(tmhmm_genes.size()==0)
 			throw new IOException ("Verify tmhmm files path!");
 
-		for(String locus_tag:new HashSet<String>(all_sequences.keySet())) {
+		for(String sequence_id:new HashSet<String>(all_sequences.keySet())) {
 
-			if(tmhmm_genes.get(locus_tag) >= minimum_number_of_helices && !this.processedGenes.contains(locus_tag)) {
+			if(tmhmm_genes.get(sequence_id) >= minimum_number_of_helices && !this.processedGenes.contains(sequence_id)) {
 
-				int seqLength = all_sequences.get(locus_tag).getLength();
+				int seqLength = all_sequences.get(sequence_id).getLength();
 
 				String matrix;
 				if(seqLength<35) { matrix="pam30";}
 				else if(seqLength<50) { matrix="pam70";}
 				else if(seqLength<85) { matrix="blosum80";}
 				else { matrix="blosum62";}
-				this.load_locus_tag(locus_tag, matrix, tmhmm_genes.get(locus_tag),conn, locus_ids);
-				processedGenes.add(locus_tag);
+				this.load_locus_tag(sequence_id, matrix, tmhmm_genes.get(sequence_id),conn, locus_ids);
+				processedGenes.add(sequence_id);
 			}
 			else {
 
-				this.load_locus_tag(locus_tag, null, tmhmm_genes.get(locus_tag),conn, locus_ids);
-				all_sequences.remove(locus_tag);
-				tmhmm_genes.remove(locus_tag);
+				this.load_locus_tag(sequence_id, null, tmhmm_genes.get(sequence_id),conn, locus_ids);
+				all_sequences.remove(sequence_id);
+				tmhmm_genes.remove(sequence_id);
 			}
 		}
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -357,10 +320,8 @@ public class Run_Similarity_Search extends Observable implements Observer {
 				thread.start();
 			}
 
-			for(Thread thread :threads) {
-
+			for(Thread thread :threads)
 				thread.join();
-			}
 		}
 		else {
 
@@ -884,10 +845,9 @@ public class Run_Similarity_Search extends Observable implements Observer {
 
 		ResultSet rs = statement.executeQuery("SELECT locus_tag FROM sw_reports WHERE status <> 'PROCESSING'");
 
-		while(rs.next()) {
-
+		while(rs.next())
 			processedGenes.add(rs.getString(1));
-		}
+
 		statement.close();
 		this.msqlmt.closeConnection(conn);
 	}
