@@ -71,11 +71,11 @@
 			<artifactId>bioapis</artifactId>
 			<version>${pt.uminho.sysbio.version}</version>
 		</dependency>
-<!-- 		<dependency>
-			<groupId>pt.uminho.ceb.biosystems.mew</groupId>
-			<artifactId>utilities</artifactId>
-			<version>0.0.1.M-SNAPSHOT</version>
-		</dependency> -->
+ 		<dependency>
+			<groupId>pt.uminho.sysbio.merlin</groupId>
+			<artifactId>database-connector</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
 	</dependencies>
 	
 
