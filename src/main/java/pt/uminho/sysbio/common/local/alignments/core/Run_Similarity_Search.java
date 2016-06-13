@@ -256,9 +256,16 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		Map<String, Integer> tmhmm_genes = new ConcurrentHashMap<String, Integer>();
 		ConcurrentHashMap<String, ProteinSequence> all_sequences = new ConcurrentHashMap<String, ProteinSequence>();
 
-		for(File tmhmm_file:tmhmmFiles) 
+		for(File tmhmm_file:tmhmmFiles) {
+		
+			System.out.println(tmhmm_file.getAbsolutePath());
+			
+			System.out.println(tmhmm_file.isFile());
+			
 			if(tmhmm_file.isFile())
 				tmhmm_genes.putAll(NcbiAPI.readTMHMMGenbank(tmhmm_file, 0));
+		
+		}
 		
 		for (String id : querySequences.keySet())
 			if(tmhmm_genes.containsKey(id))
