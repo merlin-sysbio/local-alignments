@@ -258,13 +258,8 @@ public class Run_Similarity_Search extends Observable implements Observer {
 
 		for(File tmhmm_file:tmhmmFiles) {
 		
-			System.out.println(tmhmm_file.getAbsolutePath());
-			
-			System.out.println(tmhmm_file.isFile());
-			
 			if(tmhmm_file.isFile())
 				tmhmm_genes.putAll(NcbiAPI.readTMHMMGenbank(tmhmm_file, 0));
-		
 		}
 		
 		for (String id : querySequences.keySet())
