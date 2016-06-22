@@ -30,10 +30,12 @@ import org.biojava.nbio.core.sequence.compound.AminoAcidCompoundSet;
 import org.biojava.nbio.core.sequence.template.CompoundSet;
 
 import pt.uminho.sysbio.common.database.connector.datatypes.MySQLMultiThread;
+import pt.uminho.sysbio.common.database.connector.datatypes.MySQL_Utilities;
 import pt.uminho.sysbio.common.local.alignments.core.Run_Similarity_Search.AlignmentPurpose;
 import pt.uminho.sysbio.common.local.alignments.core.Run_Similarity_Search.Method;
 import pt.uminho.sysbio.common.local.alignments.core.datatype.AlignmentContainer;
 import pt.uminho.sysbio.merlin.utilities.DatabaseProgressStatus;
+import pt.uminho.sysbio.merlin.utilities.Pair;
 
 
 /**
@@ -205,7 +207,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 
 		double helicesDependentSimilarity=this.threshold;
 		ProteinSequence tcdbAAsequence=null;
-		
+
 		for(String tcdbRecord: this.staticSubjectMap.keySet()) {
 
 			if(!this.cancel.get()) {
@@ -220,7 +222,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 				double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
 				double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
 				double identityScore = ((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
-				
+
 				double score = -1;
 				if(this.thresholdType.equals(ThresholdType.ALIGNMENT))
 					score = alignmentScore;
@@ -238,7 +240,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 						this.sequencesWithoutSimilarities.remove(query);
 
 					//TODO replace String array by Container
-					
+
 					String[] similarityData = new String[6];
 
 					similarityData[0]= new StringTokenizer(query," ").nextToken();
@@ -358,7 +360,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 							double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
 							double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
 							double identityScore = ((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
-							
+
 							double score = -1;
 							if(this.thresholdType.equals(ThresholdType.ALIGNMENT))
 								score = alignmentScore;
@@ -366,9 +368,9 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 								score = identityScore;
 							else if(this.thresholdType.equals(ThresholdType.SIMILARITY))
 								score = similarityScore;
-							
+
 							//TODO replace String array by Container
-							
+
 							if(score > threshold) {
 
 								//no_similarity = false;
@@ -466,21 +468,21 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 						alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
 					else
 						alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
-					
-//					System.out.println(querySequence);
-//					System.out.println(genomeAAsequence);
-//					System.out.println(alignmentMethod);
-//					System.out.println(querySequence.getOriginalHeader());
-//					System.out.println(alignmentMethod.getPair().getNumSimilars());
-//					System.out.println(alignmentMethod.getPair().getNumIdenticals());
-//					System.out.println(alignmentMethod.getPair().getLength());
-//					System.out.println(alignmentMethod.getSimilarity());
-					
+
+					//					System.out.println(querySequence);
+					//					System.out.println(genomeAAsequence);
+					//					System.out.println(alignmentMethod);
+					//					System.out.println(querySequence.getOriginalHeader());
+					//					System.out.println(alignmentMethod.getPair().getNumSimilars());
+					//					System.out.println(alignmentMethod.getPair().getNumIdenticals());
+					//					System.out.println(alignmentMethod.getPair().getLength());
+					//					System.out.println(alignmentMethod.getSimilarity());
+
 
 					double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()));
 					double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
 					double identityScore = ((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
-					
+
 					double score = -1;
 					if(this.thresholdType.equals(ThresholdType.ALIGNMENT))
 						score = alignmentScore;
@@ -488,7 +490,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 						score = identityScore;
 					else if(this.thresholdType.equals(ThresholdType.SIMILARITY))
 						score = similarityScore;
-					
+
 					if(score > threshold) {
 
 						AlignmentContainer alignmentContainer = new AlignmentContainer(query,
@@ -561,10 +563,12 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 	/**
 	 * @param data
 	 * @param conn
-	 * @throws SQLException 
+	 * @param ec_number
+	 * @param closestOrthologs
+	 * @param modules
+	 * @throws SQLException
 	 */
 	public static void loadOrthologsData(String[] data, Connection conn, String ec_number, Map<String, Set<String>> closestOrthologs, Map<String, Set<String>> modules) throws SQLException {
-
 
 		String queryLocus = data[0].split(":")[1];
 		//FIXME
@@ -575,63 +579,71 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 		System.out.println(closestOrthologs.get(data[0]));
 		//System.out.println(this.modules.get(data[0]));
 
-		Statement stmt = conn.createStatement();
+		Statement statement = conn.createStatement();
 
 		synchronized (conn) {
 
 			ResultSet rs = null;
-			String idGene = null;
+			Pair<String, String> geneNames = PairwiseSequenceAlignement.getGeneLocusFromHomologyData(data[1], statement);
+			String idGene = PairwiseSequenceAlignement.loadGene(geneNames, data[1], null, statement, "KO");
 
-			if(data[1]!=null) {
 
-				rs = stmt.executeQuery("SELECT idgene FROM gene WHERE locusTag ='"+data[1]+"'");
-
-				if(!rs.next()) {
-
-					rs = stmt.executeQuery("SELECT idchromosome FROM chromosome WHERE name ='unknown'");
-
-					if(!rs.next()) {
-
-						stmt.execute("INSERT INTO chromosome (name) VALUES ('unknown')");
-						rs = stmt.executeQuery("SELECT LAST_INSERT_ID();");
-						rs.next();
-					}
-					String idchromosome = rs.getString(1);
-
-					stmt.execute("INSERT INTO gene (locusTag, chromosome_idchromosome, origin) VALUES ('"+data[1]+"', "+idchromosome+",'KO')");
-					rs = stmt.executeQuery("SELECT LAST_INSERT_ID();");
-					rs.next();
-				}
-				idGene = rs.getString(1);
-			}
+//			if(data[1]!=null) {
+//
+//				rs = stmt.executeQuery("SELECT idgene FROM gene WHERE sequence_id ='"+data[1]+"'");
+//
+//				if(!rs.next()) {
+//
+//					//					rs = stmt.executeQuery("SELECT idchromosome FROM chromosome WHERE name ='unknown'");
+//					//
+//					//					if(!rs.next()) {
+//					//
+//					//						stmt.execute("INSERT INTO chromosome (name) VALUES ('unknown')");
+//					//						rs = stmt.executeQuery("SELECT LAST_INSERT_ID();");
+//					//						rs.next();
+//					//					}
+//					//					String idchromosome = rs.getString(1);
+//
+//					stmt.execute("INSERT INTO gene (locusTag,"
+//							//							+ " chromosome_idchromosome,"
+//							+ " sequence_id, "
+//							+ " origin) VALUES ('"+data[1]+"',"
+//							//									+ " "+idchromosome+","
+//							+ "'"+data[1]+"',"
+//							+ "'KO')");
+//					rs = stmt.executeQuery("SELECT LAST_INSERT_ID();");
+//					rs.next();
+//				}
+//				idGene = rs.getString(1);
+//			}
 
 			if(idGene != null) {
 
 				for (String ortholog : closestOrthologs.get(data[0])) {
 
-					rs = stmt.executeQuery("SELECT id FROM orthology WHERE entry_id ='"+ortholog+"' AND (locus_id is null OR locus_id = '')");
+					rs = statement.executeQuery("SELECT id FROM orthology WHERE entry_id ='"+ortholog+"' AND (locus_id is null OR locus_id = '')");
 
 					String orthology_id = "";
 
 					if(rs.next()) {
 
 						orthology_id = rs.getString(1);
-						stmt.execute("UPDATE orthology SET locus_id = '"+queryLocus+"' WHERE entry_id = '"+ortholog+"';");
+						statement.execute("UPDATE orthology SET locus_id = '"+queryLocus+"' WHERE entry_id = '"+ortholog+"';");
 					}
 					else {
 
-						rs = stmt.executeQuery("SELECT id FROM orthology WHERE entry_id ='"+ortholog+"' AND locus_id ='"+queryLocus+"';");
+						rs = statement.executeQuery("SELECT id FROM orthology WHERE entry_id ='"+ortholog+"' AND locus_id ='"+queryLocus+"';");
 
 						if(!rs.next()) {
 
-							stmt.execute("INSERT INTO orthology (entry_id, locus_id) VALUES ('"+ortholog+"', '"+queryLocus+"')");
-							rs = stmt.executeQuery("SELECT LAST_INSERT_ID();");
+							statement.execute("INSERT INTO orthology (entry_id, locus_id) VALUES ('"+ortholog+"', '"+queryLocus+"')");
+							rs = statement.executeQuery("SELECT LAST_INSERT_ID();");
 							rs.next();
 						}
 						orthology_id = rs.getString(1);
 					}
 
-					rs = stmt.executeQuery("SELECT * FROM gene_has_orthology WHERE gene_idgene='"+idGene+"' AND orthology_id='"+orthology_id+"'");
+					rs = statement.executeQuery("SELECT * FROM gene_has_orthology WHERE gene_idgene='"+idGene+"' AND orthology_id='"+orthology_id+"'");
 
 					if(rs.next()) {
 
@@ -639,14 +651,14 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 					}
 					else {
 
-						stmt.execute("INSERT INTO gene_has_orthology (gene_idgene,orthology_id, similarity) VALUES("+idGene+","+orthology_id+", "+data[2]+" )");
+						statement.execute("INSERT INTO gene_has_orthology (gene_idgene,orthology_id, similarity) VALUES("+idGene+","+orthology_id+", "+data[2]+" )");
 					}
 
-					rs = stmt.executeQuery("SELECT protein_idprotein FROM enzyme WHERE ecnumber='"+ec_number+"'");
+					rs = statement.executeQuery("SELECT protein_idprotein FROM enzyme WHERE ecnumber='"+ec_number+"'");
 					rs.next();
 					int protein_idprotein = rs.getInt(1);
 
-					rs = stmt.executeQuery("SELECT module_id, note FROM subunit WHERE gene_idgene='"+idGene+"' AND enzyme_ecnumber = '"+ec_number+"'");
+					rs = statement.executeQuery("SELECT module_id, note FROM subunit WHERE gene_idgene='"+idGene+"' AND enzyme_ecnumber = '"+ec_number+"'");
 
 					List<String> modules_ids = new ArrayList<String>();
 					boolean exists = false, noModules=true;
@@ -680,14 +692,14 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 
 								if(noModules) {
 
-									stmt.execute("UPDATE subunit SET module_id = "+module_id+" WHERE gene_idgene = '"+idGene+"' AND enzyme_ecnumber = '"+ec_number+"'");
+									statement.execute("UPDATE subunit SET module_id = "+module_id+" WHERE gene_idgene = '"+idGene+"' AND enzyme_ecnumber = '"+ec_number+"'");
 									noModules = false;
 									modules_ids.add(module_id);
 								}
 							}
 							else {
 
-								stmt.execute("INSERT INTO subunit (module_id, gene_idgene, enzyme_ecnumber, enzyme_protein_idprotein, note) " +
+								statement.execute("INSERT INTO subunit (module_id, gene_idgene, enzyme_ecnumber, enzyme_protein_idprotein, note) " +
 										"VALUES("+module_id+", "+idGene+", '"+ec_number+"', "+protein_idprotein+", '"+note+"')");
 								//exists = true;
 							}
@@ -699,8 +711,8 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 
 			rs.close();
 		} 
-		stmt.close();
-		stmt=null;
+		statement.close();
+		statement=null;
 	}
 
 	/**
@@ -783,7 +795,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 	 *
 	 */
 	public static enum Matrix {
-		
+
 		BLOSUM62 ("blosum62.txt"),
 		PAM30 ("pam30.txt"),
 		PAM70 ("pam70.txt"),
@@ -805,12 +817,12 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 	 *
 	 */
 	public static enum ThresholdType {
-		
+
 		ALIGNMENT,
 		IDENTITY,
 		SIMILARITY
 	}
-	
+
 	/**
 	 * @param closestOrthologs
 	 */
@@ -846,9 +858,78 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 
 	public void setKO(String ko) {
 
-		
-
 		this.ko = ko;		
 	}
+	
+	/**
+	 * @param geneNames
+	 * @param sequence_id
+	 * @param chromosome
+	 * @param statement
+	 * @param informationType
+	 * @return
+	 * @throws SQLException
+	 */
+	public static String loadGene(Pair<String,String> geneNames, String sequence_id, String chromosome, Statement statement, String informationType) throws SQLException {
 
+		String locusTag = geneNames.getA();
+		String geneName = geneNames.getB();
+		
+		ResultSet rs = statement.executeQuery("SELECT idgene FROM gene WHERE locusTag = '"+locusTag+"' AND sequence_id = '"+sequence_id+"';");
+
+		if(!rs.next()) {
+
+			String aux1 = "", aux2 = "";
+
+			if(chromosome!=null && !chromosome.isEmpty()) {
+
+				rs.close();
+				rs = statement.executeQuery("SELECT idchromosome FROM chromosome WHERE name = '"+chromosome+"'");
+
+				if(!rs.next()) {
+
+					statement.execute("INSERT INTO chromosome (name) VALUES('"+chromosome+"')");
+					rs = statement.executeQuery("SELECT LAST_INSERT_ID()");
+					rs.next();
+				}
+
+				aux1 = "chromosome_idchromosome, ";
+				aux2 = ","+ rs.getString(1);
+			}
+			statement.execute("INSERT INTO gene (locusTag, sequence_id,"+aux1+"origin) VALUES('"+locusTag+"','"+sequence_id+"' "+aux2+",'"+informationType+"')");
+			rs = statement.executeQuery("SELECT LAST_INSERT_ID()");
+			rs.next();
+
+		}
+		String geneID = rs.getString(1);
+		rs.close();
+
+		if(geneName!=null)
+			statement.execute("UPDATE gene SET name = '"+MySQL_Utilities.mysqlStrConverter(geneName)+"' WHERE sequence_id = '"+sequence_id+"'");
+
+		return geneID;
+	}
+	
+	/**
+	 * @param sequence_id
+	 * @param statement
+	 * @param informationType 
+	 * @return
+	 * @throws SQLException
+	 */
+	public static Pair<String,String> getGeneLocusFromHomologyData (String sequence_id, Statement statement) throws SQLException {
+		
+		String locusTag = sequence_id, name = null;
+				
+		ResultSet rs = statement.executeQuery("SELECT locusTag, gene FROM geneHomology WHERE query = '"+sequence_id+"';");
+		
+		if(rs.next()) {
+			
+			locusTag = rs.getString(1);
+			name = rs.getString(2);
+		}
+		
+		Pair <String, String> ret= new Pair<>(locusTag, name);
+		return ret;
+	}
 }
