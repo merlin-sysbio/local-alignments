@@ -29,8 +29,9 @@ import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
 import org.biojava.nbio.core.sequence.compound.AminoAcidCompoundSet;
 import org.biojava.nbio.core.sequence.template.CompoundSet;
 
-import pt.uminho.sysbio.common.database.connector.datatypes.MySQLMultiThread;
-import pt.uminho.sysbio.common.database.connector.datatypes.MySQL_Utilities;
+import pt.uminho.sysbio.common.database.connector.datatypes.DatabaseAccess;
+import pt.uminho.sysbio.common.database.connector.datatypes.Database_Utilities;
+import pt.uminho.sysbio.common.database.connector.datatypes.Enumerators.DatabaseType;
 import pt.uminho.sysbio.common.local.alignments.core.Run_Similarity_Search.AlignmentPurpose;
 import pt.uminho.sysbio.common.local.alignments.core.Run_Similarity_Search.Method;
 import pt.uminho.sysbio.common.local.alignments.core.datatype.AlignmentContainer;
@@ -48,7 +49,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 	private Map<String, ProteinSequence> staticSubjectMap; 
 	private Map<String,Integer> numberOfHelicesMap;
 	private ConcurrentHashMap<String, ProteinSequence> concurrentQueryMap;
-	private MySQLMultiThread msqlmt;
+	private DatabaseAccess dba;
 	private Method method;
 	private double threshold;
 	private ConcurrentHashMap<String, String> locus_ids;
@@ -71,7 +72,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 	 * @param concurrentQueryMap
 	 * @param staticSubjectMap
 	 * @param queryArray
-	 * @param msqlmt
+	 * @param dba
 	 * @param threshold
 	 * @param numberOfHelicesMap
 	 * @param locus_ids
@@ -81,14 +82,14 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 	 * @param thresholdType
 	 */
 	public PairwiseSequenceAlignement(Method method, ConcurrentHashMap<String, ProteinSequence> concurrentQueryMap, Map<String, ProteinSequence> staticSubjectMap, 
-			ConcurrentLinkedQueue<String> queryArray, MySQLMultiThread msqlmt, double  threshold, Map<String, Integer> numberOfHelicesMap, 
+			ConcurrentLinkedQueue<String> queryArray, DatabaseAccess dba, double  threshold, Map<String, Integer> numberOfHelicesMap, 
 			ConcurrentHashMap<String, String> locus_ids, AtomicInteger counter, AtomicBoolean cancel, AlignmentPurpose type, ThresholdType thresholdType) {
 
 		this.method=method;
 		this.queryArray = queryArray;
 		this.staticSubjectMap = staticSubjectMap;
 		this.concurrentQueryMap = concurrentQueryMap;
-		this.msqlmt = msqlmt;
+		this.dba = dba;
 		this.threshold=threshold;
 		this.numberOfHelicesMap=numberOfHelicesMap;
 		this.locus_ids = locus_ids;
@@ -103,7 +104,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 	 * @param concurrentQueryMap
 	 * @param staticSubjectMap
 	 * @param queryArray
-	 * @param msqlmt
+	 * @param dba
 	 * @param threshold
 	 * @param numberOfHelicesMap
 	 * @param locus_ids
@@ -112,14 +113,14 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 	 */
 	public PairwiseSequenceAlignement(Method method, ConcurrentHashMap<String, ProteinSequence> concurrentQueryMap, 
 			Map<String, ProteinSequence> staticSubjectMap, ConcurrentLinkedQueue<String> queryArray, 
-			MySQLMultiThread msqlmt, double  threshold, Map<String, Integer> numberOfHelicesMap, 
+			DatabaseAccess dba, double  threshold, Map<String, Integer> numberOfHelicesMap, 
 			ConcurrentHashMap<String, String> locus_ids, AlignmentPurpose type, ThresholdType thresholdType) {
 
 		this.method=method;
 		this.queryArray = queryArray;
 		this.staticSubjectMap = staticSubjectMap;
 		this.concurrentQueryMap = concurrentQueryMap;
-		this.msqlmt = msqlmt;
+		this.dba = dba;
 		this.threshold=threshold;
 		this.numberOfHelicesMap=numberOfHelicesMap;
 		this.locus_ids = locus_ids;
@@ -142,15 +143,15 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 
 				if(this.type.equals(AlignmentPurpose.TRANSPORT)) {
 
-					Connection conn = this.msqlmt.openConnection();
+					Connection conn = this.dba.openConnection();
 					this.getSimilarityTransport(query,conn);
-					this.msqlmt.closeConnection(conn);
+					this.dba.closeConnection(conn);
 				}
 				else if(this.type.equals(AlignmentPurpose.ORTHOLOGS)) {
 
-					Connection conn = this.msqlmt.openConnection();
+					Connection conn = this.dba.openConnection();
 					this.getSimilarityOrthologs(query,conn);
-					this.msqlmt.closeConnection(conn);
+					this.dba.closeConnection(conn);
 				}
 				else if(this.type.equals(AlignmentPurpose.OTHER)) {
 
@@ -384,7 +385,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 								similarityData[2]= alignmentScore+"";
 								similarityData[3]= matrix.toString();
 
-								PairwiseSequenceAlignement.loadOrthologsData(similarityData, conn, ec_number, closestOrthologs, modules);
+								PairwiseSequenceAlignement.loadOrthologsData(similarityData, conn, ec_number, closestOrthologs, modules, this.dba.get_database_type());
 
 								similarityData=null;
 							}
@@ -406,7 +407,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 					similarityData[2]= null;
 					similarityData[3]= null;
 
-					PairwiseSequenceAlignement.loadOrthologsData(similarityData, conn, ec_number, closestOrthologs, modules);
+					PairwiseSequenceAlignement.loadOrthologsData(similarityData, conn, ec_number, closestOrthologs, modules, this.dba.get_database_type());
 				}
 			}
 		}
@@ -566,9 +567,11 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 	 * @param ec_number
 	 * @param closestOrthologs
 	 * @param modules
+	 * @param databaseType
 	 * @throws SQLException
 	 */
-	public static void loadOrthologsData(String[] data, Connection conn, String ec_number, Map<String, Set<String>> closestOrthologs, Map<String, Set<String>> modules) throws SQLException {
+	public static void loadOrthologsData(String[] data, Connection conn, String ec_number, 
+			Map<String, Set<String>> closestOrthologs, Map<String, Set<String>> modules, DatabaseType databaseType) throws SQLException {
 
 		String queryLocus = data[0].split(":")[1];
 		//FIXME
@@ -585,7 +588,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 
 			ResultSet rs = null;
 			Pair<String, String> geneNames = PairwiseSequenceAlignement.getGeneLocusFromHomologyData(data[1], statement);
-			String idGene = PairwiseSequenceAlignement.loadGene(geneNames, data[1], null, statement, "KO");
+			String idGene = PairwiseSequenceAlignement.loadGene(geneNames, data[1], null, statement, "KO",databaseType);
 
 
 //			if(data[1]!=null) {
@@ -867,10 +870,12 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 	 * @param chromosome
 	 * @param statement
 	 * @param informationType
+	 * @param databaseType
 	 * @return
 	 * @throws SQLException
 	 */
-	public static String loadGene(Pair<String,String> geneNames, String sequence_id, String chromosome, Statement statement, String informationType) throws SQLException {
+	public static String loadGene(Pair<String,String> geneNames, String sequence_id, String chromosome,
+			Statement statement, String informationType, DatabaseType databaseType) throws SQLException {
 
 		String locusTag = geneNames.getA();
 		String geneName = geneNames.getB();
@@ -905,7 +910,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 		rs.close();
 
 		if(geneName!=null)
-			statement.execute("UPDATE gene SET name = '"+MySQL_Utilities.mysqlStrConverter(geneName)+"' WHERE sequence_id = '"+sequence_id+"'");
+			statement.execute("UPDATE gene SET name = '"+Database_Utilities.databaseStrConverter(geneName,databaseType)+"' WHERE sequence_id = '"+sequence_id+"'");
 
 		return geneID;
 	}
