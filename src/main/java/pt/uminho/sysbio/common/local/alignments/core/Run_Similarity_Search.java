@@ -466,7 +466,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		try {
 
 			stmt = conn.createStatement();
-			ResultSet rs = stmt.executeQuery("SELECT DISTINCT(locus_tag) FROM sw_reports"); //LEFT JOIN sw_similarities ON sw_reports_id=sw_reports.id WHERE similarity>"+threshold);
+			ResultSet rs = stmt.executeQuery("SELECT DISTINCT(locus_tag) FROM sw_reports"); //INNER JOIN sw_similarities ON sw_reports_id=sw_reports.id WHERE similarity>"+threshold);
 
 			while(rs.next()) {
 
@@ -494,8 +494,8 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		Statement stmt = conn.createStatement();
 
 		ResultSet rs = stmt.executeQuery("SELECT * FROM sw_reports "
-				+"LEFT JOIN sw_similarities ON sw_reports.id=sw_similarities.sw_reports_id "
-				+"LEFT JOIN sw_hits ON sw_hits.id=sw_similarities.sw_hits_id "
+				+"INNER JOIN sw_similarities ON sw_reports.id=sw_similarities.sw_reports_id "
+				+"INNER JOIN sw_hits ON sw_hits.id=sw_similarities.sw_hits_id "
 				+"ORDER BY sw_reports.locus_tag, similarity DESC ");
 
 		out.write("locus tag\tsimilarity\thomologue ID\tTCDB ID\tnumber of helices\n");

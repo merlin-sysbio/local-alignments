@@ -532,8 +532,8 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 		Statement stmt = conn.createStatement();
 
 		ResultSet rs = stmt.executeQuery("SELECT locusTag FROM gene " +
-				"LEFT JOIN gene_has_orthology ON (idgene = gene_idgene)" +
-				"LEFT JOIN orthology ON (orthology_id = orthology.id)" +
+				"INNER JOIN gene_has_orthology ON (idgene = gene_idgene)" +
+				"INNER JOIN orthology ON (orthology_id = orthology.id)" +
 				" WHERE entry_id ='"+query+"'");
 
 		while (rs.next()) {
