@@ -30,10 +30,10 @@ import org.biojava.nbio.core.sequence.compound.AminoAcidCompoundSet;
 import org.biojava.nbio.core.sequence.template.CompoundSet;
 
 import pt.uminho.sysbio.common.database.connector.datatypes.DatabaseAccess;
-import pt.uminho.sysbio.common.database.connector.datatypes.Database_Utilities;
+import pt.uminho.sysbio.common.database.connector.datatypes.DatabaseUtilities;
 import pt.uminho.sysbio.common.database.connector.datatypes.Enumerators.DatabaseType;
-import pt.uminho.sysbio.common.local.alignments.core.Run_Similarity_Search.AlignmentPurpose;
-import pt.uminho.sysbio.common.local.alignments.core.Run_Similarity_Search.Method;
+import pt.uminho.sysbio.common.local.alignments.core.RunSimilaritySearch.AlignmentPurpose;
+import pt.uminho.sysbio.common.local.alignments.core.RunSimilaritySearch.Method;
 import pt.uminho.sysbio.common.local.alignments.core.datatype.AlignmentContainer;
 import pt.uminho.sysbio.merlin.utilities.DatabaseProgressStatus;
 import pt.uminho.sysbio.merlin.utilities.Pair;
@@ -196,8 +196,10 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 		//		if(seqLength<35){matrix=Matrix.PAM30;gapOpenPenalty=9;}
 		//		else if(seqLength<50){matrix=Matrix.PAM70;}
 		//		else 
-		if(seqLength<85){matrix=Matrix.BLOSUM80;}
-		else{matrix=Matrix.BLOSUM62;}
+		if(seqLength<85)
+			matrix=Matrix.BLOSUM80;
+		else
+			matrix=Matrix.BLOSUM62;
 
 		AbstractPairwiseSequenceAligner<ProteinSequence,AminoAcidCompound> alignmentMethod;
 		GapPenalty gp = new SimpleGapPenalty(gapOpenPenalty ,gapExtensionPenalty);
@@ -910,7 +912,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable{
 		rs.close();
 
 		if(geneName!=null)
-			statement.execute("UPDATE gene SET name = '"+Database_Utilities.databaseStrConverter(geneName,databaseType)+"' WHERE sequence_id = '"+sequence_id+"'");
+			statement.execute("UPDATE gene SET name = '"+DatabaseUtilities.databaseStrConverter(geneName,databaseType)+"' WHERE sequence_id = '"+sequence_id+"'");
 
 		return geneID;
 	}

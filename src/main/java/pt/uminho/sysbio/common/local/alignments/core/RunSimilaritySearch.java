@@ -4,18 +4,11 @@ package pt.uminho.sysbio.common.local.alignments.core;
  */
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,7 +29,8 @@ import org.biojava.nbio.core.sequence.io.FastaReader;
 import org.biojava.nbio.core.sequence.io.GenericFastaHeaderParser;
 import org.biojava.nbio.core.sequence.io.ProteinSequenceCreator;
 
-import pt.uminho.sysbio.common.bioapis.externalAPI.ncbi.NcbiAPI;
+import pt.uminho.sysbio.common.database.connector.databaseAPI.TransportersAPI;
+import pt.uminho.sysbio.common.database.connector.datatypes.Connection;
 import pt.uminho.sysbio.common.database.connector.datatypes.DatabaseAccess;
 import pt.uminho.sysbio.common.local.alignments.core.PairwiseSequenceAlignement.ThresholdType;
 import pt.uminho.sysbio.merlin.utilities.DatabaseProgressStatus;
@@ -45,15 +39,14 @@ import pt.uminho.sysbio.merlin.utilities.DatabaseProgressStatus;
  * @author ODias
  *
  */
-public class Run_Similarity_Search extends Observable implements Observer {
+public class RunSimilaritySearch extends Observable implements Observer {
 
-	private DatabaseAccess dba;
+	private DatabaseAccess dbAccess;
 	private Map<String, ProteinSequence> staticGenesSet;
 	private boolean alreadyProcessed, processed;
 	private AtomicBoolean cancel;
 	private AtomicInteger counter;
 	private AtomicInteger querySize;
-	private List<File> tmhmmFiles;
 	private int minimum_number_of_helices;
 	private double similarity_threshold;
 	private Method method;
@@ -74,10 +67,10 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	private ThresholdType thresholdType;
 
 
+
 	/**
-	 * @param dba
+	 * @param dbAccess
 	 * @param staticGenesSet
-	 * @param tmhmm_file_dir
 	 * @param minimum_number_of_helices
 	 * @param similarity_threshold
 	 * @param method
@@ -87,20 +80,8 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @param idLocus
 	 * @throws Exception
 	 */
-	public Run_Similarity_Search(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, File tmhmm_file_dir, int minimum_number_of_helices,
+	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, int minimum_number_of_helices,
 			double similarity_threshold, Method method, File genome_dir, int project_id, ThresholdType thresholdType, Map<String, String> idLocus) throws Exception {
-
-		List<File> tmhmmFiles = new ArrayList<File>();
-		if(tmhmm_file_dir.isDirectory()) {
-
-			for(File tmhmm_file:tmhmm_file_dir.listFiles()) {
-
-				if(tmhmm_file.isFile()) {
-
-					tmhmmFiles.add(tmhmm_file);
-				}
-			}
-		}
 
 		Map<String, ProteinSequence> querySequences = new HashMap<String, ProteinSequence>();
 		if(genome_dir.isDirectory()) {
@@ -122,9 +103,8 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		this.setCounter(new AtomicInteger(0));
 		this.setQuerySize(new AtomicInteger(0));
 		this.setCancel(new AtomicBoolean(false));
-		this.dba = dba;
+		this.dbAccess = dba;
 		this.staticGenesSet = staticGenesSet;
-		this.tmhmmFiles = tmhmmFiles;
 		this.minimum_number_of_helices = minimum_number_of_helices;
 		this.similarity_threshold = similarity_threshold;
 		this.method = method; 
@@ -137,9 +117,8 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	}
 
 	/**
-	 * @param dba
+	 * @param dbAccess
 	 * @param staticGenesSet
-	 * @param tmhmm_file_dir
 	 * @param minimum_number_of_helices
 	 * @param similarity_threshold
 	 * @param method
@@ -149,22 +128,14 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @param idLocus
 	 * @throws Exception
 	 */
-	public Run_Similarity_Search(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, File tmhmm_file_dir, int minimum_number_of_helices,
+	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, int minimum_number_of_helices,
 			double similarity_threshold, Method method, Map<String, ProteinSequence> genome, int project_id, ThresholdType thresholdType, Map<String, String> idLocus) throws Exception {
-
-		List<File> tmhmmFiles = new ArrayList<File>();
-		
-		if(tmhmm_file_dir.isDirectory())
-			for(File tmhmm_file:tmhmm_file_dir.listFiles())
-				if(tmhmm_file.isFile())
-					tmhmmFiles.add(tmhmm_file);
 
 		this.setCounter(new AtomicInteger(0));
 		this.setQuerySize(new AtomicInteger(0));
 		this.setCancel(new AtomicBoolean(false));
-		this.dba = dba;
+		this.dbAccess = dba;
 		this.staticGenesSet = staticGenesSet;
-		this.tmhmmFiles = tmhmmFiles;
 		this.minimum_number_of_helices = minimum_number_of_helices;
 		this.similarity_threshold = similarity_threshold;
 		this.method = method; 
@@ -177,9 +148,8 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	}
 
 	/**
-	 * @param dba
+	 * @param dbAccess
 	 * @param staticGenesSet
-	 * @param tmhmmFiles
 	 * @param minimum_number_of_helices
 	 * @param similarity_threshold
 	 * @param method
@@ -191,16 +161,15 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @param thresholdType
 	 * @throws Exception
 	 */
-	public Run_Similarity_Search(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, List<File> tmhmmFiles, int minimum_number_of_helices,
+	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, int minimum_number_of_helices,
 			double similarity_threshold, Method method, Map<String, ProteinSequence> querySequences, AtomicBoolean cancel, 
 			AtomicInteger querySize, AtomicInteger counter, int project_id, ThresholdType thresholdType) throws Exception {
 
 		this.setCounter(counter);
 		this.setQuerySize(querySize);
 		this.setCancel(cancel);
-		this.dba = dba;
+		this.dbAccess = dba;
 		this.staticGenesSet = staticGenesSet;
-		this.tmhmmFiles = tmhmmFiles;
 		this.minimum_number_of_helices = minimum_number_of_helices;
 		this.similarity_threshold = similarity_threshold;
 		this.method = method; 
@@ -213,7 +182,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	}
 
 	/**
-	 * @param dba
+	 * @param dbAccess
 	 * @param staticGenesSet
 	 * @param similarity_threshold
 	 * @param method
@@ -224,15 +193,14 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @param project_id
 	 * @param thresholdType
 	 */
-	public Run_Similarity_Search(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, double similarity_threshold, Method method, 
+	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, double similarity_threshold, Method method, 
 			ConcurrentHashMap<String, ProteinSequence> querySequences, AtomicBoolean cancel, AtomicInteger querySize, AtomicInteger counter, int project_id, ThresholdType thresholdType) {
 
 		this.setCounter(counter);
 		this.setQuerySize(querySize);
 		this.setCancel(cancel);
-		this.dba = dba;
+		this.dbAccess = dba;
 		this.staticGenesSet = staticGenesSet;
-		this.tmhmmFiles = null;
 		this.minimum_number_of_helices = -1;
 		this.similarity_threshold = similarity_threshold;
 		this.method = method; 
@@ -245,75 +213,73 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	}
 
 	/**
+	 * @param transmembraneGenes 
+	 * @param allSequences 
 	 * @throws Exception
 	 */
-	public void run_TransportSearch() throws Exception {
+	public void runTransportSearch(Map<String, Integer> transmembraneGenes, ConcurrentHashMap<String, ProteinSequence> allSequences) throws Exception {
 
-		this.retrieveProcessedGenes();
-		Connection conn = dba.openConnection();
+		Connection conn = new Connection(dbAccess);
+
+		this.processedGenes = TransportersAPI.retrieveProcessedTransportAlignmentGenes(conn);
+
 		this.setProcessed(false);
 		ConcurrentHashMap<String, String> locus_ids = new ConcurrentHashMap<String, String>();
-		Map<String, Integer> tmhmm_genes = new ConcurrentHashMap<String, Integer>();
-		ConcurrentHashMap<String, ProteinSequence> all_sequences = new ConcurrentHashMap<String, ProteinSequence>();
 
-		for(File tmhmm_file:tmhmmFiles) {
-		
-			if(tmhmm_file.isFile())
-				tmhmm_genes.putAll(NcbiAPI.readTMHMMGenbank(tmhmm_file, 0));
-		}
-		
-		for (String id : querySequences.keySet())
-			if(tmhmm_genes.containsKey(id))
-				all_sequences.put(id,querySequences.get(id));
-		
-		if(tmhmm_genes.size()==0)
-			throw new IOException ("Verify tmhmm files path!");
+		for(String sequence_id : new HashSet<String>(allSequences.keySet())) {
 
-		for(String sequence_id:new HashSet<String>(all_sequences.keySet())) {
+			String status = null;
 
-			if(tmhmm_genes.get(sequence_id) >= minimum_number_of_helices && !this.processedGenes.contains(sequence_id)) {
+			if(transmembraneGenes.get(sequence_id) >= minimum_number_of_helices && !this.processedGenes.contains(sequence_id)) {
 
-				int seqLength = all_sequences.get(sequence_id).getLength();
+				int seqLength = allSequences.get(sequence_id).getLength();
 
 				String matrix;
-				if(seqLength<35) { matrix="pam30";}
-				else if(seqLength<50) { matrix="pam70";}
-				else if(seqLength<85) { matrix="blosum80";}
-				else { matrix="blosum62";}
-				this.load_locus_tag(sequence_id, matrix, tmhmm_genes.get(sequence_id),conn, locus_ids);
+				if(seqLength<35)
+					matrix="pam30";
+				else if(seqLength<50)
+					matrix="pam70";
+				else if(seqLength<85)
+					matrix="blosum80";
+				else
+					matrix="blosum62";
+
+				status = DatabaseProgressStatus.PROCESSING.toString();
+				TransportersAPI.loadTransportAlignmentsGenes(sequence_id, matrix, transmembraneGenes.get(sequence_id), conn, locus_ids, status, this.project_id);
 				processedGenes.add(sequence_id);
 			}
 			else {
 
-				this.load_locus_tag(sequence_id, null, tmhmm_genes.get(sequence_id),conn, locus_ids);
-				all_sequences.remove(sequence_id);
-				tmhmm_genes.remove(sequence_id);
+				status = DatabaseProgressStatus.PROCESSED.toString();
+				TransportersAPI.loadTransportAlignmentsGenes(sequence_id, null, transmembraneGenes.get(sequence_id),conn, locus_ids, status, this.project_id);
+				allSequences.remove(sequence_id);
+				transmembraneGenes.remove(sequence_id);
 			}
 		}
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		if(tmhmm_genes.keySet().size()>0) {
+		if(transmembraneGenes.keySet().size()>0) {
 
 			this.setAlreadyProcessed(false);
 			/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 			List<Thread> threads = new ArrayList<Thread>();
-			ConcurrentLinkedQueue<String> queryArray = new ConcurrentLinkedQueue<String>(all_sequences.keySet());
+			ConcurrentLinkedQueue<String> queryArray = new ConcurrentLinkedQueue<String>(allSequences.keySet());
 			int numberOfCores = Runtime.getRuntime().availableProcessors();
 			//int numberOfCores = new Double(Runtime.getRuntime().availableProcessors()*1.5).intValue();
 
-			if(all_sequences.keySet().size()<numberOfCores)
-				numberOfCores=all_sequences.keySet().size();
+			if(allSequences.keySet().size()<numberOfCores)
+				numberOfCores=allSequences.keySet().size();
 
 			System.out.println("number Of threads: "+numberOfCores);
 
-			this.querySize.set(new Integer(all_sequences.size()));
+			this.querySize.set(new Integer(allSequences.size()));
 			setChanged();
 			notifyObservers();
 
 			for(int i=0; i<numberOfCores; i++) {
 
-				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, this.staticGenesSet, queryArray, dba, 
-						similarity_threshold,tmhmm_genes, locus_ids, this.counter, this.cancel, AlignmentPurpose.TRANSPORT, this.thresholdType);
+				Runnable lc	= new PairwiseSequenceAlignement(method, allSequences, this.staticGenesSet, queryArray, dbAccess, 
+						similarity_threshold, transmembraneGenes, locus_ids, this.counter, this.cancel, AlignmentPurpose.TRANSPORT, this.thresholdType);
 
 				((PairwiseSequenceAlignement) lc).addObserver(this); 
 				Thread thread = new Thread(lc);
@@ -330,7 +296,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 			this.setAlreadyProcessed(true);
 		}
 		this.setProcessed(true);
-		conn.close();
+		conn.closeConnection();
 	}
 
 
@@ -338,8 +304,6 @@ public class Run_Similarity_Search extends Observable implements Observer {
 	 * @throws Exception
 	 */
 	public void run_OrthologsSearch() throws Exception {
-
-		Connection conn = dba.openConnection();
 
 		boolean recursive = false;
 
@@ -388,7 +352,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 
 			for(int i=0; i<numberOfCores; i++) {
 
-				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ec_number_annotations, queryArray,  dba, 
+				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ec_number_annotations, queryArray,  dbAccess, 
 						similarity_threshold, null, null, this.counter, this.cancel, AlignmentPurpose.ORTHOLOGS, this.thresholdType);
 				((PairwiseSequenceAlignement) lc).setSequencesWithoutSimilarities(this.sequencesWithoutSimilarities);
 				((PairwiseSequenceAlignement) lc).setEc_number(this.ec_number);
@@ -419,8 +383,6 @@ public class Run_Similarity_Search extends Observable implements Observer {
 			this.setAlreadyProcessed(true);
 		}
 		this.setProcessed(true);
-		conn.close();
-
 	}
 
 	/**
@@ -454,68 +416,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		return tcdb;
 	}
 
-	/**
-	 * @param queryMap 
-	 * @throws SQLException 
-	 */
-	public void removeLoadedCandidates(Set<String> candidates, Map<String, ProteinSequence> queryMap) throws SQLException {
 
-		Connection conn = this.dba.openConnection();
-		Statement stmt;
-
-		try {
-
-			stmt = conn.createStatement();
-			ResultSet rs = stmt.executeQuery("SELECT DISTINCT(locus_tag) FROM sw_reports"); //INNER JOIN sw_similarities ON sw_reports_id=sw_reports.id WHERE similarity>"+threshold);
-
-			while(rs.next()) {
-
-				candidates.remove(rs.getString(1));
-				queryMap.remove(rs.getString(1));
-			}
-			stmt.close();
-			this.dba.closeConnection(conn);
-		}
-		catch (SQLException e) {e.printStackTrace();}
-	}
-
-	/**
-	 * @param msmt 
-	 * @param dataSource
-	 * @throws IOException 
-	 * @throws SQLException 
-	 */
-	public static void makeFile(String output_file_name, DatabaseAccess dba) throws IOException, SQLException {
-
-		Connection conn = dba.openConnection();
-		FileWriter fstream = new FileWriter(output_file_name);
-		BufferedWriter out = new BufferedWriter(fstream);
-
-		Statement stmt = conn.createStatement();
-
-		ResultSet rs = stmt.executeQuery("SELECT * FROM sw_reports "
-				+"INNER JOIN sw_similarities ON sw_reports.id=sw_similarities.sw_reports_id "
-				+"INNER JOIN sw_hits ON sw_hits.id=sw_similarities.sw_hits_id "
-				+"ORDER BY sw_reports.locus_tag, similarity DESC ");
-
-		out.write("locus tag\tsimilarity\thomologue ID\tTCDB ID\tnumber of helices\n");
-		String locus="";
-		while(rs.next()) {
-
-			if(!locus.equals(rs.getString(1)) && rs.getString(8)!=null) {
-
-				locus=rs.getString(1);
-			}
-
-			if(rs.getString(8)!=null) {
-
-				out.write(rs.getString(2)+"\t"+rs.getString(8)+"\t"+rs.getString(10)+"\t"+rs.getString(11)+"\t"+rs.getString(5)+"\n");
-			}
-		}
-		//Close the output stream
-		out.close();
-		dba.closeConnection(conn);
-	}	
 
 
 	/**
@@ -539,51 +440,7 @@ public class Run_Similarity_Search extends Observable implements Observer {
 		OTHER
 	}
 
-	/**
-	 * @param locus_tag
-	 * @param matrix
-	 * @param locus_ids 
-	 * @return
-	 * @throws SQLException
-	 */
-	private String load_locus_tag(String locus_tag, String matrix, int tmd, Connection conn, ConcurrentHashMap<String,String> locus_ids) throws SQLException {
 
-		String result = null;
-		if(locus_ids.contains(locus_tag)) {
-
-			result=locus_ids.get(locus_tag);
-		}
-		else {
-
-			String status = null;
-			if(tmd<minimum_number_of_helices) {
-
-				status = DatabaseProgressStatus.PROCESSED.toString();
-			}
-			else {
-
-				status = DatabaseProgressStatus.PROCESSING.toString();
-			}
-
-
-			java.sql.Date sqlToday = new java.sql.Date((new java.util.Date()).getTime());
-			Statement stmt = conn.createStatement();
-			ResultSet rs = stmt.executeQuery("SELECT id FROM sw_reports WHERE locus_tag='"+locus_tag+"'");
-
-			if(!rs.next()) {
-
-				stmt.execute("INSERT INTO sw_reports (locus_tag, date, matrix, number_TMD, project_id, status) " +
-						"VALUES ('"+locus_tag+"','"+sqlToday+"','"+matrix+"','"+tmd+"',"+this.project_id+",'"+status+"')");
-				rs = stmt.executeQuery("SELECT LAST_INSERT_ID()");
-				rs.next();
-			}
-			result = rs.getString(1);
-			rs.close();
-			stmt=null;
-			locus_ids.put(locus_tag,result);
-		}
-		return result;
-	}
 
 
 	/**
@@ -833,25 +690,6 @@ public class Run_Similarity_Search extends Observable implements Observer {
 
 	public void setCompareToFullGenome(boolean compareToFullGenome) {
 		this.compareToFullGenome = compareToFullGenome;
-	}
-
-	/**
-	 * @throws SQLException
-	 */
-	public void retrieveProcessedGenes() throws SQLException{
-
-		this.processedGenes = new HashSet<String>();
-
-		Connection conn = this.dba.openConnection();
-		Statement statement = conn.createStatement();
-
-		ResultSet rs = statement.executeQuery("SELECT locus_tag FROM sw_reports WHERE status <> 'PROCESSING'");
-
-		while(rs.next())
-			processedGenes.add(rs.getString(1));
-
-		statement.close();
-		this.dba.closeConnection(conn);
 	}
 
 }
