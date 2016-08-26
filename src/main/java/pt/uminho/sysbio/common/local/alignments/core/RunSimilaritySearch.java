@@ -32,7 +32,9 @@ import org.biojava.nbio.core.sequence.io.ProteinSequenceCreator;
 import pt.uminho.sysbio.common.database.connector.databaseAPI.TransportersAPI;
 import pt.uminho.sysbio.common.database.connector.datatypes.Connection;
 import pt.uminho.sysbio.common.database.connector.datatypes.DatabaseAccess;
-import pt.uminho.sysbio.common.local.alignments.core.PairwiseSequenceAlignement.ThresholdType;
+import pt.uminho.sysbio.common.local.alignments.core.Enumerators.AlignmentPurpose;
+import pt.uminho.sysbio.common.local.alignments.core.Enumerators.Method;
+import pt.uminho.sysbio.common.local.alignments.core.Enumerators.ThresholdType;
 import pt.uminho.sysbio.merlin.utilities.DatabaseProgressStatus;
 
 /**
@@ -51,8 +53,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	private double similarity_threshold;
 	private Method method;
 	private Map<String, ProteinSequence> querySequences;
-	private boolean isUseProxy, isUseAuthentication;
-	private String host, port, user, pass;
 	private Set<String> processedGenes;
 	private List<String> annotatedGenes;
 	private ConcurrentLinkedQueue<String> sequencesWithoutSimilarities;
@@ -66,9 +66,9 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	private boolean compareToFullGenome;
 	private ThresholdType thresholdType;
 
-
-
 	/**
+	 * Run similarity searches constructor.
+	 * 
 	 * @param dbAccess
 	 * @param staticGenesSet
 	 * @param minimum_number_of_helices
@@ -109,14 +109,14 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		this.similarity_threshold = similarity_threshold;
 		this.method = method; 
 		this.querySequences = querySequences;
-		this.isUseProxy = false;
-		this.isUseAuthentication = false;
 		this.sequencesWithoutSimilarities = null;
 		this.project_id = project_id;
 		this.thresholdType = thresholdType;
 	}
 
 	/**
+	 * Run similarity searches constructor.
+	 * 
 	 * @param dbAccess
 	 * @param staticGenesSet
 	 * @param minimum_number_of_helices
@@ -128,8 +128,9 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 * @param idLocus
 	 * @throws Exception
 	 */
-	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, int minimum_number_of_helices,
-			double similarity_threshold, Method method, Map<String, ProteinSequence> genome, int project_id, ThresholdType thresholdType, Map<String, String> idLocus) throws Exception {
+	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, int minimum_number_of_helices, double similarity_threshold, 
+			Method method, Map<String, ProteinSequence> genome,
+			int project_id, ThresholdType thresholdType, Map<String, String> idLocus) throws Exception {
 
 		this.setCounter(new AtomicInteger(0));
 		this.setQuerySize(new AtomicInteger(0));
@@ -140,14 +141,14 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		this.similarity_threshold = similarity_threshold;
 		this.method = method; 
 		this.querySequences = genome;
-		this.isUseProxy = false;
-		this.isUseAuthentication = false;
 		this.sequencesWithoutSimilarities = null;
 		this.project_id = project_id;
 		this.thresholdType = thresholdType;
 	}
 
 	/**
+	 * Run similarity searches constructor.
+	 * 
 	 * @param dbAccess
 	 * @param staticGenesSet
 	 * @param minimum_number_of_helices
@@ -161,9 +162,10 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 * @param thresholdType
 	 * @throws Exception
 	 */
-	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, int minimum_number_of_helices,
-			double similarity_threshold, Method method, Map<String, ProteinSequence> querySequences, AtomicBoolean cancel, 
-			AtomicInteger querySize, AtomicInteger counter, int project_id, ThresholdType thresholdType) throws Exception {
+	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, int minimum_number_of_helices, double similarity_threshold,  
+			Method method, Map<String, ProteinSequence> querySequences, 
+			AtomicBoolean cancel, AtomicInteger querySize, AtomicInteger counter, 
+			int project_id, ThresholdType thresholdType) throws Exception {
 
 		this.setCounter(counter);
 		this.setQuerySize(querySize);
@@ -174,45 +176,47 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		this.similarity_threshold = similarity_threshold;
 		this.method = method; 
 		this.querySequences = querySequences;
-		this.isUseProxy = false;
-		this.isUseAuthentication = false;
 		this.sequencesWithoutSimilarities = null;
 		this.project_id = project_id;
 		this.thresholdType = thresholdType;
 	}
 
 	/**
+	 * Run similarity searches constructor.
+	 *  
 	 * @param dbAccess
 	 * @param staticGenesSet
 	 * @param similarity_threshold
 	 * @param method
-	 * @param querySequences
+	 * @param orthologs
 	 * @param cancel
 	 * @param querySize
 	 * @param counter
-	 * @param project_id
-	 * @param thresholdType
+	 * @param d
+	 * @param alignment
 	 */
-	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, double similarity_threshold, Method method, 
-			ConcurrentHashMap<String, ProteinSequence> querySequences, AtomicBoolean cancel, AtomicInteger querySize, AtomicInteger counter, int project_id, ThresholdType thresholdType) {
-
+	public RunSimilaritySearch(DatabaseAccess dbAccess, Map<String, ProteinSequence> staticGenesSet, double similarity_threshold, Method method, 
+			ConcurrentHashMap<String, ProteinSequence> orthologs, 
+			AtomicBoolean cancel, AtomicInteger querySize, AtomicInteger counter, 
+			int project_id, ThresholdType thresholdType) throws Exception {
+	
 		this.setCounter(counter);
 		this.setQuerySize(querySize);
 		this.setCancel(cancel);
-		this.dbAccess = dba;
+		this.dbAccess = dbAccess;
 		this.staticGenesSet = staticGenesSet;
-		this.minimum_number_of_helices = -1;
 		this.similarity_threshold = similarity_threshold;
 		this.method = method; 
-		this.querySequences = querySequences;
-		this.isUseProxy = false;
-		this.isUseAuthentication = false;
+		this.querySequences = orthologs;
 		this.sequencesWithoutSimilarities = null;
 		this.project_id = project_id;
 		this.thresholdType = thresholdType;
 	}
+	
 
 	/**
+	 * Run the transport similarity searches.
+	 * 
 	 * @param transmembraneGenes 
 	 * @param allSequences 
 	 * @throws Exception
@@ -278,8 +282,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 
 			for(int i=0; i<numberOfCores; i++) {
 
-				Runnable lc	= new PairwiseSequenceAlignement(method, allSequences, this.staticGenesSet, queryArray, dbAccess, 
-						similarity_threshold, transmembraneGenes, locus_ids, this.counter, this.cancel, AlignmentPurpose.TRANSPORT, this.thresholdType);
+				Runnable lc	= new PairwiseSequenceAlignement(this.method, allSequences, this.staticGenesSet, queryArray, this.dbAccess, this.similarity_threshold, 
+						transmembraneGenes, locus_ids, this.counter, this.cancel, AlignmentPurpose.TRANSPORT, this.thresholdType);
 
 				((PairwiseSequenceAlignement) lc).addObserver(this); 
 				Thread thread = new Thread(lc);
@@ -344,16 +348,16 @@ public class RunSimilaritySearch extends Observable implements Observer {
 
 			int numberOfCores = Runtime.getRuntime().availableProcessors();
 
-			if(queryArray.size()<numberOfCores) {
-
+			if(queryArray.size()<numberOfCores)
 				numberOfCores=queryArray.size();
-			}
+
 			System.out.println("number Of threads: "+numberOfCores);
 
 			for(int i=0; i<numberOfCores; i++) {
 
 				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ec_number_annotations, queryArray,  dbAccess, 
 						similarity_threshold, null, null, this.counter, this.cancel, AlignmentPurpose.ORTHOLOGS, this.thresholdType);
+				
 				((PairwiseSequenceAlignement) lc).setSequencesWithoutSimilarities(this.sequencesWithoutSimilarities);
 				((PairwiseSequenceAlignement) lc).setEc_number(this.ec_number);
 				((PairwiseSequenceAlignement) lc).setModules(this.modules);
@@ -369,10 +373,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				thread.start();
 			}
 
-			for(Thread thread :threads) {
-
+			for(Thread thread :threads)
 				thread.join();
-			}
 
 			if(this.compareToFullGenome && !recursive && this.sequencesWithoutSimilarities!=null && !this.sequencesWithoutSimilarities.isEmpty())
 				this.run_OrthologsSearch();
@@ -386,28 +388,27 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	}
 
 	/**
+	 * 
+	 * 
 	 * @param url
 	 * @return
 	 * @throws Exception
 	 */
-	public static Map<String, ProteinSequence> set_TCDB(String url) throws Exception {
+	public static Map<String, ProteinSequence> setTCDB(String url) throws Exception {
 
 		InputStream tcdbInputStream = (new URL(url)).openStream();
 		BufferedReader br= new BufferedReader(new InputStreamReader(tcdbInputStream));
 		StringBuilder sb = new StringBuilder();
 		String line;
 
-		while ((line = br.readLine()) != null) {
-
+		while ((line = br.readLine()) != null)
 			sb.append(line+"\n");
-		} 
-		String theString = sb.toString().replace("</p>", "").replace("<p>", "").replace(">gnl|TC-DB|xxxxxx 3.A.1.205.14 \ndsfgdfg", "");
+
+			String theString = sb.toString().replace("</p>", "").replace("<p>", "").replace(">gnl|TC-DB|xxxxxx 3.A.1.205.14 \ndsfgdfg", "");
 		byte[] bytes = theString.getBytes("utf-8");
 		tcdbInputStream =  new ByteArrayInputStream(bytes);
 
-		//File tcdbFile = new File("C:/tcdb.txt");
-		FastaReader<ProteinSequence,AminoAcidCompound> fastaReader
-		= new FastaReader<ProteinSequence,AminoAcidCompound>(
+		FastaReader<ProteinSequence,AminoAcidCompound> fastaReader = new FastaReader<ProteinSequence,AminoAcidCompound>(
 				tcdbInputStream, 
 				//tcdbFile,
 				new GenericFastaHeaderParser<ProteinSequence,AminoAcidCompound>(), 
@@ -415,33 +416,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		Map<String, ProteinSequence> tcdb  = fastaReader.process();
 		return tcdb;
 	}
-
-
-
-
-	/**
-	 * @author ODias
-	 * available methods for alignment
-	 */
-	public static enum Method {
-
-		SmithWaterman,
-		NeedlemanWunsch
-	}
-
-	/**
-	 * @author ODias
-	 * available methods for alignment
-	 */
-	public static enum AlignmentPurpose {
-
-		TRANSPORT,
-		ORTHOLOGS,
-		OTHER
-	}
-
-
-
 
 	/**
 	 * @return the alreadyProcessed
@@ -492,102 +466,12 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		return querySize;
 	}
 
-	/**
-	 * @return the isUseProxy
-	 */
-	public boolean isUseProxy() {
-		return isUseProxy;
-	}
-
-	/**
-	 * @param isUseProxy the isUseProxy to set
-	 */
-	public void setUseProxy(boolean isUseProxy) {
-		this.isUseProxy = isUseProxy;
-	}
-
-	/**
-	 * @return the isUseAuthentication
-	 */
-	public boolean isUseAuthentication() {
-		return isUseAuthentication;
-	}
-
-	/**
-	 * @param isUseAuthentication the isUseAuthentication to set
-	 */
-	public void setUseAuthentication(boolean isUseAuthentication) {
-		this.isUseAuthentication = isUseAuthentication;
-	}
-
-	/**
-	 * @return the host
-	 */
-	public String getHost() {
-		return host;
-	}
-
-	/**
-	 * @param host the host to set
-	 */
-	public void setHost(String host) {
-		this.host = host;
-	}
-
-	/**
-	 * @return the port
-	 */
-	public String getPort() {
-		return port;
-	}
-
-	/**
-	 * @param port the port to set
-	 */
-	public void setPort(String port) {
-		this.port = port;
-	}
-
-	/**
-	 * @return the user
-	 */
-	public String getUser() {
-		return user;
-	}
-
-	/**
-	 * @param user the user to set
-	 */
-	public void setUser(String user) {
-		this.user = user;
-	}
-
-	/**
-	 * @return the pass
-	 */
-	public String getPass() {
-		return pass;
-	}
-
-	/**
-	 * @param pass the pass to set
-	 */
-	public void setPass(String pass) {
-		this.pass = pass;
-	}
 
 	/**
 	 * @param cancel the cancel to set
 	 */
 	public void setCancel(AtomicBoolean cancel) {
 		this.cancel = cancel;
-	}
-
-	@Override
-	public void update(Observable arg0, Object arg1) {
-
-		setChanged();
-		notifyObservers();
 	}
 
 	public Set<String> getProcessedGenes() {
@@ -690,6 +574,13 @@ public class RunSimilaritySearch extends Observable implements Observer {
 
 	public void setCompareToFullGenome(boolean compareToFullGenome) {
 		this.compareToFullGenome = compareToFullGenome;
+	}
+	
+	@Override
+	public void update(Observable arg0, Object arg1) {
+
+		setChanged();
+		notifyObservers();
 	}
 
 }

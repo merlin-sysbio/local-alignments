@@ -30,7 +30,7 @@ import org.biojava.nbio.core.sequence.template.CompoundSet;
 import org.biojava.nbio.core.sequence.template.Sequence;
 import org.junit.Test;
 
-import pt.uminho.sysbio.common.local.alignments.core.PairwiseSequenceAlignement.Matrix;
+import pt.uminho.sysbio.common.local.alignments.core.Enumerators.Matrix;
 import pt.uminho.sysbio.common.local.alignments.core.datatype.AlignmentContainer;
 
 public class Tests {
