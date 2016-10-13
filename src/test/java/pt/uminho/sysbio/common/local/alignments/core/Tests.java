@@ -35,20 +35,20 @@ import pt.uminho.sysbio.common.local.alignments.core.datatype.AlignmentContainer
 
 public class Tests {
 
-
+	
 	@Test
 	public void align() throws Exception {
 
 
 		System.out.println("######################### old sw align #######################");
 		String ko = null;
-		String uni_id = "Q0VNJ6"; // ABO Q0VNJ6
+		String uni_id = "A1TX06";//"Q0VNJ6"; // ABO Q0VNJ6
 
 		ProteinSequence	querySequence = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id)).openStream()).get(uni_id);
 
 		Set<String> orthologs = new HashSet<>();
 		//orthologs.add("C1B498");
-		orthologs.add("Q93ZR6"); // ARA TH Q93ZR6
+		//		orthologs.add("Q93ZR6"); // ARA TH Q93ZR6
 		//		orthologs.add("C1ASK8");
 		//		orthologs.add("Q14693");
 		//		orthologs.add("O14494");
@@ -60,6 +60,7 @@ public class Tests {
 		//		orthologs.add("M3X9V6");
 		//		orthologs.add("B8XSI9");
 		//		orthologs.add("B8XSI7");
+		orthologs.add("A1U572");
 
 		for (String uniprot_id : orthologs) {
 
@@ -130,14 +131,15 @@ public class Tests {
 		}
 	}
 
-
+	@Test
 	public void newAlign() throws MalformedURLException, IOException, Exception{
 
 		System.out.println("######################### new sw align #######################");
 
-		String uni_id1 = "Q0VKV8";	// "Q0VNJ6";
-		String uni_id2 = "C1B498";	// "Q93ZR6";
-
+//		String uni_id1 = "Q0VKV8";	// "Q0VNJ6";
+//		String uni_id2 = "C1B498";	// "Q93ZR6";
+		String uni_id1 = "A1TX06";
+		String uni_id2 = ("A1U572");
 
 		ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id1)).openStream()).get(uni_id1);
 		ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id2)).openStream()).get(uni_id2);
@@ -205,8 +207,7 @@ public class Tests {
 			System.out.println();
 		}
 	}
-
-
+	
 	//
 	//	@Test
 	//	public void testBiojava () throws Exception {
