@@ -475,47 +475,56 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 				for(String genome: this.staticSubjectMap.keySet()) {
 
-					genomeAAsequence = this.staticSubjectMap.get(genome);
+					try {
+						genomeAAsequence = this.staticSubjectMap.get(genome);
 
-					if(this.method.equals(Method.SmithWaterman))
-						alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
-					else
-						alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
+						if(this.method.equals(Method.SmithWaterman))
+							alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
+						else
+							alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
 
-					//					System.out.println(querySequence);
-					//					System.out.println(genomeAAsequence);
-					//					System.out.println(alignmentMethod);
-					//					System.out.println(querySequence.getOriginalHeader());
-					//					System.out.println(alignmentMethod.getPair().getNumSimilars());
-					//					System.out.println(alignmentMethod.getPair().getNumIdenticals());
-					//					System.out.println(alignmentMethod.getPair().getLength());
-					//					System.out.println(alignmentMethod.getSimilarity());
+						//					System.out.println(querySequence);
+						//					System.out.println(genomeAAsequence);
+						//					System.out.println(alignmentMethod);
+						//					System.out.println(querySequence.getOriginalHeader());
+						//					System.out.println(alignmentMethod.getPair().getNumSimilars());
+						//					System.out.println(alignmentMethod.getPair().getNumIdenticals());
+						//					System.out.println(alignmentMethod.getPair().getLength());
+						//					System.out.println(alignmentMethod.getSimilarity());
 
 
-					double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()));
-					double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
-					double identityScore = ((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
+						double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()));
+						double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
+						double identityScore = ((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
 
-					double score = -1;
-					if(this.thresholdType.equals(ThresholdType.ALIGNMENT))
-						score = alignmentScore;
-					else if(this.thresholdType.equals(ThresholdType.IDENTITY))
-						score = identityScore;
-					else if(this.thresholdType.equals(ThresholdType.SIMILARITY))
-						score = similarityScore;
+						double score = -1;
+						if(this.thresholdType.equals(ThresholdType.ALIGNMENT))
+							score = alignmentScore;
+						else if(this.thresholdType.equals(ThresholdType.IDENTITY))
+							score = identityScore;
+						else if(this.thresholdType.equals(ThresholdType.SIMILARITY))
+							score = similarityScore;
 
-					if(score > threshold) {
+						if(score > threshold) {
 
-						AlignmentContainer alignmentContainer = new AlignmentContainer(query,
-								this.staticSubjectMap.get(genome).getOriginalHeader(), 
-								alignmentScore, similarityScore, identityScore, matrix.toString(), ko, 
-								alignmentMethod.getPair().getLength(), alignmentMethod.getPair().getNumIdenticals(),
-								alignmentMethod.getPair().getNumSimilars(), 
-								alignmentMethod.getQuery().getLength(),
-								alignmentMethod.getTarget().getLength(), alignmentMethod.getScore(),
-								alignmentMethod.getMaxScore(), alignmentMethod.getMinScore());
-						alignmentContainer.setScoreMatrix(alignmentMethod.getScoreMatrix());
-						alignmentContainerSet.add(alignmentContainer);
+							AlignmentContainer alignmentContainer = new AlignmentContainer(query,
+									this.staticSubjectMap.get(genome).getOriginalHeader(), 
+									alignmentScore, similarityScore, identityScore, matrix.toString(), ko, 
+									alignmentMethod.getPair().getLength(), alignmentMethod.getPair().getNumIdenticals(),
+									alignmentMethod.getPair().getNumSimilars(), 
+									alignmentMethod.getQuery().getLength(),
+									alignmentMethod.getTarget().getLength(), alignmentMethod.getScore(),
+									alignmentMethod.getMaxScore(), alignmentMethod.getMinScore());
+							alignmentContainer.setScoreMatrix(alignmentMethod.getScoreMatrix());
+							alignmentContainerSet.add(alignmentContainer);
+						}
+					} 
+					catch (OutOfMemoryError ee) {
+
+						ee.printStackTrace();
+						System.err.println(query);
+						System.err.println(querySequence);
+						System.out.println(genomeAAsequence);
 					}
 				}
 			}
@@ -527,6 +536,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 			System.err.println();
 			System.out.println();
 		}
+		
 		return alignmentContainerSet;
 	}
 
