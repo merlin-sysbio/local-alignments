@@ -49,7 +49,7 @@ public class Enumerators {
 	 * @author Oscar
 	 *
 	 */
-	public static enum ThresholdType {
+	public static enum AlignmentScoreType {
 
 		ALIGNMENT,
 		IDENTITY,

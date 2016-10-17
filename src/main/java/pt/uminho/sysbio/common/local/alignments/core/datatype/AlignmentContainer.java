@@ -1,6 +1,10 @@
 package pt.uminho.sysbio.common.local.alignments.core.datatype;
 
+import java.util.Arrays;
 
+import org.biojava.nbio.alignment.Alignments.PairwiseSequenceScorerType;
+
+import pt.uminho.sysbio.common.local.alignments.core.Enumerators.Method;
 
 /**
  * @author Oscar
@@ -10,101 +14,151 @@ public class AlignmentContainer {
 	
 	private String query;
 	private String target;
-	private double alignmentScore;
-	private double similarityScore;
-	private double identityScore;
+	private PairwiseSequenceScorerType alignmentScoreType;
 	private String matrix;
 	private String ko;
-	private int alignmentLength;
-	private double identityLength;
-	private double similarityLength;
 	private double queryLength, targetLength;
 	private double score, maxScore, minScore;
+	private Method method;
 	private int[][][] scoreMatrix;
 	
 	
 	/**
+	 * @param alignmentScoreType
 	 * @param query
 	 * @param target
-	 * @param alignmentScore
-	 * @param similarityScore
-	 * @param identityScore
-	 * @param matrix
+	 * @param score
 	 * @param ko
-	 * @param alignmentLength
-	 * @param identityLength
-	 * @param similarityLength
 	 * @param queryLength
 	 * @param targetLength
-	 * @param score
 	 * @param maxScore
 	 * @param minScore
+	 * @param matrix
+	 * @param method
 	 */
-	public AlignmentContainer(String query, String target,
-			double alignmentScore, double similarityScore,
-			double identityScore, String matrix, String ko,
-			int alignmentLength, double identityLength,
-			double similarityLength, double queryLength, 
-			double targetLength, double score, 
-			double maxScore, double minScore) {
+	public AlignmentContainer(PairwiseSequenceScorerType alignmentScoreType, String query, String target, double score, String ko, int queryLength, int targetLength, double maxScore, double minScore, String matrix, Method method) {
+		
 		super();
+		this.alignmentScoreType = alignmentScoreType;
 		this.query = query;
 		this.target = target;
-		this.alignmentScore = alignmentScore;
-		this.similarityScore = similarityScore;
-		this.identityScore = identityScore;
 		this.matrix = matrix;
 		this.ko = ko;
-		this.setAlignmentLength(alignmentLength);
-		this.setIdentityLength(identityLength);
-		this.setSimilarityLength(similarityLength);
 		this.setQueryLength(queryLength);
 		this.setTargetLength(targetLength);
 		this.setScore(score);
 		this.setMaxScore(maxScore);
 		this.setMinScore(minScore);
+		this.setMethod(method);
 	}
 	
 	/**
+	 * @param alignmentScoreType
 	 * @param query
 	 * @param target
-	 * @param alignmentScore
-	 * @param similarityScore
-	 * @param identityScore
-	 * @param matrix
+	 * @param score
 	 * @param ko
+	 * @param queryLength
+	 * @param targetLength
+	 * @param matrix
+	 * @param method
 	 */
-	public AlignmentContainer(String query, String target,
-			double alignmentScore, double similarityScore,
-			double identityScore, String matrix, String ko) {
+	public AlignmentContainer(PairwiseSequenceScorerType alignmentScoreType, String query, String target, double score, String ko, int queryLength, int targetLength, String matrix, Method method) {
+		
 		super();
+		this.alignmentScoreType = alignmentScoreType;
 		this.query = query;
 		this.target = target;
-		this.alignmentScore = alignmentScore;
-		this.setSimilarityScore(similarityScore);
-		this.setIdentityScore(identityScore);
-		this.matrix = matrix;
 		this.ko = ko;
+		this.setQueryLength(queryLength);
+		this.setTargetLength(targetLength);
+		this.matrix = matrix;
+		this.setScore(score);
+		this.setMethod(method);
+	}
+	
+	/**
+	 * @param alignmentScoreType
+	 * @param query
+	 * @param target
+	 * @param score
+	 * @param queryLength
+	 * @param targetLength
+	 * @param matrix
+	 * @param method
+	 */
+	public AlignmentContainer(PairwiseSequenceScorerType alignmentScoreType, String query, String target, double score, int queryLength, int targetLength, String matrix, Method method) {
+		
+		super();
+		this.alignmentScoreType = alignmentScoreType;
+		this.query = query;
+		this.target = target;
+		this.setQueryLength(queryLength);
+		this.setTargetLength(targetLength);
+		this.matrix = matrix;
+		this.setScore(score);
+	}
+	
+	
+	/**
+	 * @param alignmentScoreType
+	 * @param query
+	 * @param target
+	 * @param score
+	 * @param ko
+	 * @param matrix
+	 */
+	public AlignmentContainer(PairwiseSequenceScorerType alignmentScoreType, String query, String target, double score, String ko, String matrix, Method method) {
+		super();
+		this.alignmentScoreType = alignmentScoreType;
+		this.query = query;
+		this.target = target;
+		this.score = score;
+		this.ko = ko;
+		this.matrix = matrix;
+		this.setMethod(method);
 	}
 
 	/**
+	 * @param alignmentScoreType
 	 * @param query
 	 * @param locusTag
-	 * @param alignmentScore
-	 * @param similarityScore
+	 * @param score
 	 * @param identityScore
 	 * @param matrix
 	 */
-	public AlignmentContainer(String query, String locusTag,
-			double alignmentScore, double similarityScore,
-			double identityScore, String matrix) {
+	/**
+	 * @param alignmentScoreType
+	 * @param query
+	 * @param locusTag
+	 * @param score
+	 * @param identityScore
+	 * @param matrix
+	 * @param method
+	 */
+	public AlignmentContainer(PairwiseSequenceScorerType alignmentScoreType, String query, String locusTag, double score, double identityScore, String matrix, Method method) {
+		
 		super();
+		this.alignmentScoreType = alignmentScoreType;
 		this.query = query;
 		this.target = locusTag;
-		this.alignmentScore = alignmentScore;
-		this.setSimilarityScore(similarityScore);
-		this.setIdentityScore(identityScore);
+		this.score = score;
 		this.matrix = matrix;
+		this.setMethod(method);
+	}
+
+	/**
+	 * @return the alignmentScoreType
+	 */
+	public PairwiseSequenceScorerType getAlignmentScoreType() {
+		return alignmentScoreType;
+	}
+
+	/**
+	 * @param alignmentScoreType the alignmentScoreType to set
+	 */
+	public void setAlignmentScoreType(PairwiseSequenceScorerType alignmentScoreType) {
+		this.alignmentScoreType = alignmentScoreType;
 	}
 
 	/**
@@ -135,19 +189,6 @@ public class AlignmentContainer {
 		this.target = target;
 	}
 
-	/**
-	 * @return the alignmentScore
-	 */
-	public double getAlignmentScore() {
-		return alignmentScore;
-	}
-
-	/**
-	 * @param alignmentScore the alignmentScore to set
-	 */
-	public void setAlignmentScore(double alignmentScore) {
-		this.alignmentScore = alignmentScore;
-	}
 
 	/**
 	 * @return the matrix
@@ -179,83 +220,6 @@ public class AlignmentContainer {
 		this.ko = ko;
 	}
 
-
-
-	/**
-	 * @return the similarityScore
-	 */
-	public double getSimilarityScore() {
-		return similarityScore;
-	}
-
-
-
-	/**
-	 * @param similarityScore the similarityScore to set
-	 */
-	public void setSimilarityScore(double similarityScore) {
-		this.similarityScore = similarityScore;
-	}
-
-
-
-	/**
-	 * @return the identityScore
-	 */
-	public double getIdentityScore() {
-		return identityScore;
-	}
-
-
-
-	/**
-	 * @param identityScore the identityScore to set
-	 */
-	public void setIdentityScore(double identityScore) {
-		this.identityScore = identityScore;
-	}
-
-	/**
-	 * @return the alignmentLength
-	 */
-	public int getAlignmentLength() {
-		return alignmentLength;
-	}
-
-	/**
-	 * @param alignmentLength the alignmentLength to set
-	 */
-	public void setAlignmentLength(int alignmentLength) {
-		this.alignmentLength = alignmentLength;
-	}
-
-	/**
-	 * @return the identityLength
-	 */
-	public double getIdentityLength() {
-		return identityLength;
-	}
-
-	/**
-	 * @param identityLength the identityLength to set
-	 */
-	public void setIdentityLength(double identityLength) {
-		this.identityLength = identityLength;
-	}
-
-	/**
-	 * @return the similarityLength
-	 */
-	public double getSimilarityLength() {
-		return similarityLength;
-	}
-
-	/**
-	 * @param similarityLength the similarityLength to set
-	 */
-	public void setSimilarityLength(double similarityLength) {
-		this.similarityLength = similarityLength;
-	}
 
 	/**
 	 * @return the score
@@ -297,19 +261,6 @@ public class AlignmentContainer {
 	 */
 	public void setMinScore(double minscore) {
 		this.minScore = minscore;
-	}
-
-	@Override
-	public String toString() {
-		return "AlignmentContainer [query=" + query + ", locusTag=" + target
-				+ ", alignmentScore=" + alignmentScore + ", similarityScore="
-				+ similarityScore + ", identityScore=" + identityScore
-				+ ", matrix=" + matrix + ", ko=" + ko + ", alignmentLength="
-				+ alignmentLength + ", identityLength=" + identityLength
-				+ ", similarityLength=" + similarityLength + ", queryLenght="
-				+ queryLength + ", targetLength=" + targetLength + ", score="
-				+ score + ", maxScore=" + maxScore + ", minScore=" + minScore
-				+ "]";
 	}
 
 	/**
@@ -356,4 +307,31 @@ public class AlignmentContainer {
 		return this.scoreMatrix;
 	}
 
+	/**
+	 * @return the method
+	 */
+	public Method getMethod() {
+		return method;
+	}
+
+	/**
+	 * @param method the method to set
+	 */
+	public void setMethod(Method method) {
+		this.method = method;
+	}
+
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return "AlignmentContainer [query=" + query + ", target=" + target + ", alignmentScoreType="
+				+ alignmentScoreType + ", matrix=" + matrix + ", ko=" + ko
+				+ ", queryLength=" + queryLength + ", targetLength=" + targetLength + ", score=" + score + ", maxScore="
+				+ maxScore + ", minScore=" + minScore + ", scoreMatrix=" + Arrays.toString(scoreMatrix) + "]";
+	}
+
+	
+	
 }

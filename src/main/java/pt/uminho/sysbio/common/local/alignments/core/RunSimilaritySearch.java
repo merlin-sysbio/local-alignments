@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.biojava.nbio.alignment.Alignments.PairwiseSequenceScorerType;
 import org.biojava.nbio.core.sequence.ProteinSequence;
 import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
 import org.biojava.nbio.core.sequence.compound.AminoAcidCompoundSet;
@@ -34,7 +35,6 @@ import pt.uminho.sysbio.common.database.connector.datatypes.Connection;
 import pt.uminho.sysbio.common.database.connector.datatypes.DatabaseAccess;
 import pt.uminho.sysbio.common.local.alignments.core.Enumerators.AlignmentPurpose;
 import pt.uminho.sysbio.common.local.alignments.core.Enumerators.Method;
-import pt.uminho.sysbio.common.local.alignments.core.Enumerators.ThresholdType;
 import pt.uminho.sysbio.merlin.utilities.DatabaseProgressStatus;
 
 /**
@@ -64,7 +64,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	private Map<String, Integer> kegg_taxonomy_scores;
 	private double referenceTaxonomyThreshold;
 	private boolean compareToFullGenome;
-	private ThresholdType thresholdType;
+	private PairwiseSequenceScorerType alignmentScoreType;
 
 	/**
 	 * Run similarity searches constructor.
@@ -76,12 +76,12 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 * @param method
 	 * @param genome_dir
 	 * @param project_id
-	 * @param thresholdType
+	 * @param alignmentScoreType
 	 * @param idLocus
 	 * @throws Exception
 	 */
 	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, int minimum_number_of_helices,
-			double similarity_threshold, Method method, File genome_dir, int project_id, ThresholdType thresholdType, Map<String, String> idLocus) throws Exception {
+			double similarity_threshold, Method method, File genome_dir, int project_id, PairwiseSequenceScorerType alignmentScoreType, Map<String, String> idLocus) throws Exception {
 
 		Map<String, ProteinSequence> querySequences = new HashMap<String, ProteinSequence>();
 		if(genome_dir.isDirectory()) {
@@ -111,7 +111,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		this.querySequences = querySequences;
 		this.sequencesWithoutSimilarities = null;
 		this.project_id = project_id;
-		this.thresholdType = thresholdType;
+		this.alignmentScoreType = alignmentScoreType;
 	}
 
 	/**
@@ -124,13 +124,13 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 * @param method
 	 * @param genome
 	 * @param project_id
-	 * @param thresholdType
+	 * @param alignmentScoreType
 	 * @param idLocus
 	 * @throws Exception
 	 */
 	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, int minimum_number_of_helices, double similarity_threshold, 
 			Method method, Map<String, ProteinSequence> genome,
-			int project_id, ThresholdType thresholdType, Map<String, String> idLocus) throws Exception {
+			int project_id, PairwiseSequenceScorerType alignmentScoreType, Map<String, String> idLocus) throws Exception {
 
 		this.setCounter(new AtomicInteger(0));
 		this.setQuerySize(new AtomicInteger(0));
@@ -143,7 +143,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		this.querySequences = genome;
 		this.sequencesWithoutSimilarities = null;
 		this.project_id = project_id;
-		this.thresholdType = thresholdType;
+		this.alignmentScoreType = alignmentScoreType;
 	}
 
 	/**
@@ -159,13 +159,13 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 * @param querySize
 	 * @param counter
 	 * @param project_id
-	 * @param thresholdType
+	 * @param alignmentScoreType
 	 * @throws Exception
 	 */
 	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, int minimum_number_of_helices, double similarity_threshold,  
 			Method method, Map<String, ProteinSequence> querySequences, 
 			AtomicBoolean cancel, AtomicInteger querySize, AtomicInteger counter, 
-			int project_id, ThresholdType thresholdType) throws Exception {
+			int project_id, PairwiseSequenceScorerType alignmentScoreType) throws Exception {
 
 		this.setCounter(counter);
 		this.setQuerySize(querySize);
@@ -178,7 +178,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		this.querySequences = querySequences;
 		this.sequencesWithoutSimilarities = null;
 		this.project_id = project_id;
-		this.thresholdType = thresholdType;
+		this.alignmentScoreType = alignmentScoreType;
 	}
 
 	/**
@@ -198,7 +198,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	public RunSimilaritySearch(DatabaseAccess dbAccess, Map<String, ProteinSequence> staticGenesSet, double similarity_threshold, Method method, 
 			ConcurrentHashMap<String, ProteinSequence> orthologs, 
 			AtomicBoolean cancel, AtomicInteger querySize, AtomicInteger counter, 
-			int project_id, ThresholdType thresholdType) throws Exception {
+			int project_id, PairwiseSequenceScorerType alignmentScoreType) throws Exception {
 	
 		this.setCounter(counter);
 		this.setQuerySize(querySize);
@@ -210,7 +210,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		this.querySequences = orthologs;
 		this.sequencesWithoutSimilarities = null;
 		this.project_id = project_id;
-		this.thresholdType = thresholdType;
+		this.alignmentScoreType = alignmentScoreType;
 	}
 	
 
@@ -283,7 +283,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			for(int i=0; i<numberOfCores; i++) {
 
 				Runnable lc	= new PairwiseSequenceAlignement(this.method, allSequences, this.staticGenesSet, queryArray, this.dbAccess, this.similarity_threshold, 
-						transmembraneGenes, locus_ids, this.counter, this.cancel, AlignmentPurpose.TRANSPORT, this.thresholdType);
+						transmembraneGenes, locus_ids, this.counter, this.cancel, AlignmentPurpose.TRANSPORT, this.alignmentScoreType);
 
 				((PairwiseSequenceAlignement) lc).addObserver(this); 
 				Thread thread = new Thread(lc);
@@ -326,13 +326,13 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			setChanged();
 			notifyObservers();
 
-			Map<String, ProteinSequence> ec_number_annotations = new HashMap<String, ProteinSequence>();
-			ec_number_annotations.putAll(this.staticGenesSet);
+			Map<String, ProteinSequence> ecNumberAnnotations = new HashMap<String, ProteinSequence>();
+			ecNumberAnnotations.putAll(this.staticGenesSet);
 
 			if(this.sequencesWithoutSimilarities==null) {
 
 				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty())
-					ec_number_annotations.keySet().retainAll(this.annotatedGenes);
+					ecNumberAnnotations.keySet().retainAll(this.annotatedGenes);
 
 				if(!recursive) {
 
@@ -355,8 +355,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 
 			for(int i=0; i<numberOfCores; i++) {
 
-				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ec_number_annotations, queryArray,  dbAccess, 
-						similarity_threshold, null, null, this.counter, this.cancel, AlignmentPurpose.ORTHOLOGS, this.thresholdType);
+				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ecNumberAnnotations, queryArray,  dbAccess, 
+						similarity_threshold, null, null, this.counter, this.cancel, AlignmentPurpose.ORTHOLOGS, this.alignmentScoreType);
 				
 				((PairwiseSequenceAlignement) lc).setSequencesWithoutSimilarities(this.sequencesWithoutSimilarities);
 				((PairwiseSequenceAlignement) lc).setEc_number(this.ec_number);
