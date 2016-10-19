@@ -1,7 +1,5 @@
 package pt.uminho.sysbio.common.local.alignments.core.datatype;
 
-import java.util.Arrays;
-
 import org.biojava.nbio.alignment.Alignments.PairwiseSequenceScorerType;
 
 import pt.uminho.sysbio.common.local.alignments.core.Enumerators.Method;
@@ -12,8 +10,8 @@ import pt.uminho.sysbio.common.local.alignments.core.Enumerators.Method;
  */
 public class AlignmentContainer {
 	
-	private String query;
-	private String target;
+	private String query, queryLocus;
+	private String target, targetLocus;
 	private PairwiseSequenceScorerType alignmentScoreType;
 	private String matrix;
 	private String ko;
@@ -321,17 +319,32 @@ public class AlignmentContainer {
 		this.method = method;
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
+	/**
+	 * @return the queryLocus
 	 */
-	@Override
-	public String toString() {
-		return "AlignmentContainer [query=" + query + ", target=" + target + ", alignmentScoreType="
-				+ alignmentScoreType + ", matrix=" + matrix + ", ko=" + ko
-				+ ", queryLength=" + queryLength + ", targetLength=" + targetLength + ", score=" + score + ", maxScore="
-				+ maxScore + ", minScore=" + minScore + ", scoreMatrix=" + Arrays.toString(scoreMatrix) + "]";
+	public String getQueryLocus() {
+		return queryLocus;
 	}
 
-	
-	
+	/**
+	 * @param queryLocus the queryLocus to set
+	 */
+	public void setQueryLocus(String queryLocus) {
+		this.queryLocus = queryLocus;
+	}
+
+	/**
+	 * @return the targetLocus
+	 */
+	public String getTargetLocus() {
+		return targetLocus;
+	}
+
+	/**
+	 * @param targetLocus the targetLocus to set
+	 */
+	public void setTargetLocus(String targetLocus) {
+		this.targetLocus = targetLocus;
+	}
+
 }
