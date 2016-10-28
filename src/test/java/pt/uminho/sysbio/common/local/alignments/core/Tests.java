@@ -20,6 +20,7 @@ import org.biojava.nbio.alignment.SimpleGapPenalty;
 import org.biojava.nbio.alignment.SmithWaterman;
 import org.biojava.nbio.alignment.template.AbstractPairwiseSequenceAligner;
 import org.biojava.nbio.alignment.template.GapPenalty;
+import org.biojava.nbio.alignment.template.PairwiseSequenceAligner;
 import org.biojava.nbio.alignment.template.PairwiseSequenceScorer;
 import org.biojava.nbio.core.alignment.matrices.SimpleSubstitutionMatrix;
 import org.biojava.nbio.core.alignment.template.AlignedSequence;
@@ -34,12 +35,10 @@ import org.biojava.nbio.core.sequence.template.Sequence;
 import org.junit.Test;
 
 import pt.uminho.sysbio.common.local.alignments.core.Enumerators.Matrix;
-import pt.uminho.sysbio.common.local.alignments.core.Enumerators.Method;
-import pt.uminho.sysbio.common.local.alignments.core.datatype.AlignmentContainer;
 
 public class Tests {
 
-	
+
 	//@Test
 	public void align() throws Exception {
 
@@ -118,21 +117,88 @@ public class Tests {
 			fileWriter.write(alignmentMethod.getScoreMatrixAsString().replaceAll(" +", "\t").replace("0", ""));
 			fileWriter.close();
 			System.out.println();
-//			for(short[][] saa : alignmentMethod.getScoreMatrix()) {
-//				for(short[] sa : saa) {
-//					for(short s : sa) {
-//
-//						System.out.print(s+" ");
-//					}
-//					System.out.println();
-//				}
-//				System.out.println();
-//			}
+			//			for(short[][] saa : alignmentMethod.getScoreMatrix()) {
+			//				for(short[] sa : saa) {
+			//					for(short s : sa) {
+			//
+			//						System.out.print(s+" ");
+			//					}
+			//					System.out.println();
+			//				}
+			//				System.out.println();
+			//			}
 
-			AlignmentContainer alignmentContainer = new AlignmentContainer(PairwiseSequenceScorerType.LOCAL, uni_id, uniprot_id, alignmentScore, matrix.toString(), ko, Method.SmithWaterman);
-			System.out.println(alignmentContainer);
+			//AlignmentContainer alignmentContainer = new AlignmentContainer(PairwiseSequenceScorerType.LOCAL, uni_id, uniprot_id, alignmentScore, matrix.toString(), ko, Method.SmithWaterman);
+			//System.out.println(alignmentContainer);
 
 		}
+	}
+	
+	@Test
+	public void newAlignBetter() throws MalformedURLException, IOException, Exception{
+
+		System.out.println("######################### new sw align #######################");
+
+		//		String uni_id1 = "Q0VKV8";	// "Q0VNJ6";
+		//		String uni_id2 = "C1B498";	// "Q93ZR6";
+		//		String uni_id1 = "A1TX06";
+		//		String uni_id2 = ("A1U572");
+//				String uni_id1 = "P49374";
+//				String uni_id2 = ("P0AGF4");
+//				ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id1)).openStream()).get(uni_id1);
+//				ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id2)).openStream()).get(uni_id2);
+
+		ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq1.txt"))).get("seq1");
+		ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq2.txt"))).get("seq2");
+
+		Matrix matrix = Matrix.BLOSUM62;
+		short gapOpenPenalty=10, gapExtensionPenalty=1;
+
+		GapPenalty gp = new SimpleGapPenalty(gapOpenPenalty, gapExtensionPenalty);
+		CompoundSet<AminoAcidCompound> aa = new AminoAcidCompoundSet();
+		Reader rd = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(matrix.getPath()));
+		SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd, matrix.getPath());
+
+		PairwiseSequenceAligner<ProteinSequence, AminoAcidCompound> result =  Alignments.getPairwiseAligner(s1,s2, PairwiseSequenceAlignerType.LOCAL, gp, sb);
+		
+		double minResidues = 100;
+		double score = ((double) result.getPair().getNumIdenticals()/result.getPair().getLength()), threshold = 0.3;
+		
+		System.out.println("Length " + result.getPair().getLength());
+		
+		if(result.getPair().getLength()>=minResidues) {
+			
+			if(score > threshold) {
+				
+				System.out.println("Length ok. score "+score+"\t"+(score > threshold));
+			}
+		}
+		else {
+			
+			while (result.getPair().getLength()<minResidues) {
+				
+				minResidues = minResidues/2;
+				threshold +=0.2;
+				System.out.println("new min residues "+minResidues);
+				System.out.println("new threshold "+threshold);
+				
+				if(threshold>1)
+					threshold=1;
+			}
+			
+			System.out.println("Length not ok "+minResidues+" score "+(score > threshold));
+		}
+		
+		System.out.println("Similarity "+result.getSimilarity());
+		System.out.println("Score "+result.getScore());
+		System.out.println("Min Score "+result.getMinScore());
+		System.out.println("Max Score "+result.getMaxScore());
+		System.out.println("Score calc "+ ((double) result.getScore()/result.getMaxScore()));
+		System.out.println("Length "+result.getPair().getLength());
+		System.out.println("query: "+result.getQuery().getLength()+"\ttarget: "+ result.getTarget().getLength() +"\tdistance: "+result.getDistance());
+		System.out.println("Similarity score "+ ((double) result.getPair().getNumSimilars()/result.getPair().getLength()));
+		System.out.println("Identity score "+ ((double) result.getPair().getNumIdenticals()/result.getPair().getLength()));
+		System.out.println();
 	}
 
 	@Test
@@ -140,17 +206,18 @@ public class Tests {
 
 		System.out.println("######################### new sw align #######################");
 
-//		String uni_id1 = "Q0VKV8";	// "Q0VNJ6";
-//		String uni_id2 = "C1B498";	// "Q93ZR6";
-		String uni_id1 = "A1TX06";
-		String uni_id2 = ("A1U572");
+		//		String uni_id1 = "Q0VKV8";	// "Q0VNJ6";
+		//		String uni_id2 = "C1B498";	// "Q93ZR6";
+		//		String uni_id1 = "A1TX06";
+		//		String uni_id2 = ("A1U572");
+//				String uni_id1 = "P49374";
+//				String uni_id2 = ("P0AGF4");
+//				ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id1)).openStream()).get(uni_id1);
+//				ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id2)).openStream()).get(uni_id2);
 
-		//ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id1)).openStream()).get(uni_id1);
-		//ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id2)).openStream()).get(uni_id2);
-
-		ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq1.txt"))).get("query");
+		ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq1.txt"))).get("seq1");
 		ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq2.txt"))).get("seq2");
-		
+
 		Matrix matrix = Matrix.BLOSUM62;
 		short gapOpenPenalty=10, gapExtensionPenalty=1;
 
@@ -164,16 +231,15 @@ public class Tests {
 				s2,
 				PairwiseSequenceAlignerType.LOCAL, gp, sb);
 
-				System.out.printf("%n%s vs %s%n%s %n%s %n%s %n%s %n", pair.getQuery().getAccession(), pair.getTarget().getAccession(), pair, "NumSimilars "+pair.getNumSimilars(),"NumIdenticals "+pair.getNumIdenticals(),"Lenght "+ pair.getLength());
-		
-				for(AlignedSequence<ProteinSequence, AminoAcidCompound> p : pair.getAlignedSequences()){
-		
-					System.out.println(p.getStart()+ " " + p.getEnd());
-				}
+		System.out.printf("%n%s vs %s%n%s %n%s %n%s %n%s %n", pair.getQuery().getAccession(), pair.getTarget().getAccession(), pair, "NumSimilars "+pair.getNumSimilars(),"NumIdenticals "+pair.getNumIdenticals(),"Lenght "+ pair.getLength());
+
+		for(AlignedSequence<ProteinSequence, AminoAcidCompound> p : pair.getAlignedSequences())
+			System.out.println(p.getOriginalSequence().getOriginalHeader()+"\t"+p.getStart()+ " " + p.getEnd());
 
 		System.out.println("Similarity score "+ ((double) pair.getNumSimilars()/pair.getLength()));
 		System.out.println("Identity score "+ ((double) pair.getNumIdenticals()/pair.getLength()));
-
+		System.out.println("Length " + pair.getLength());
+		System.out.println();
 		List<ProteinSequence> lps = new ArrayList<>();
 		lps.add(s1);
 		lps.add(s2);
@@ -183,11 +249,12 @@ public class Tests {
 
 		for(PairwiseSequenceScorer<ProteinSequence, AminoAcidCompound> res : result) {
 
+			System.out.println("distance "+res.getDistance());
 			System.out.println(PairwiseSequenceScorerType.LOCAL+" "+res.getSimilarity());
 			System.out.println("Score "+res.getScore());
+			System.out.println("Min Score "+res.getMinScore());
 			System.out.println("Max Score "+res.getMaxScore());
 			System.out.println("Score calc "+ ((double) res.getScore()/res.getMaxScore()));
-			System.out.println(res.getQuery().getLength() +" \t"+ res.getTarget().getLength() +"\t"+res.getDistance());
 			System.out.println();
 		}
 
@@ -195,8 +262,10 @@ public class Tests {
 
 		for(PairwiseSequenceScorer<ProteinSequence, AminoAcidCompound> res : result) {
 
+			System.out.println("distance "+res.getDistance());
 			System.out.println(PairwiseSequenceScorerType.LOCAL_SIMILARITIES+" "+res.getSimilarity());
 			System.out.println("Score "+res.getScore());
+			System.out.println("Min Score "+res.getMinScore());
 			System.out.println("Max Score "+res.getMaxScore());
 			System.out.println("Score calc "+ ((double) res.getScore()/res.getMaxScore()));
 			System.out.println();
@@ -206,14 +275,16 @@ public class Tests {
 
 		for(PairwiseSequenceScorer<ProteinSequence, AminoAcidCompound> res : result) {
 
+			System.out.println("distance "+res.getDistance());
 			System.out.println(PairwiseSequenceScorerType.LOCAL_IDENTITIES+" "+res.getSimilarity());
+			System.out.println("Min Score "+res.getMinScore());
 			System.out.println("Score "+res.getScore());
 			System.out.println("Max Score "+res.getMaxScore());
 			System.out.println("Score calc "+ ((double) res.getScore()/res.getMaxScore()));
 			System.out.println();
 		}
 	}
-	
+
 	//
 	//	@Test
 	//	public void testBiojava () throws Exception {
