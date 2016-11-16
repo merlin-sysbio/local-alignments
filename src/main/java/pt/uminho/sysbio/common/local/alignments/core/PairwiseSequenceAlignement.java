@@ -538,8 +538,8 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 							AlignmentContainer alignmentContainer = new AlignmentContainer(query, this.staticSubjectMap.get(genome).getOriginalHeader(), ko, 
 									score, result.getMaxScore(), result.getMinScore(), result.getScore(), 
 									result.getPair().getNumIdenticals(), result.getPair().getNumSimilars(), 
-									result.getPair().getLength(), result.getPair().getQuery().getLength(), 
-									result.getPair().getTarget().getLength(), matrix.toString(), this.method, this.alignmentScoreType);
+									result.getPair().getLength(),querySequence.getLength(), 
+									genomeAAsequence.getLength(), matrix.toString(), this.method, this.alignmentScoreType);
 							alignmentContainerSet.add(alignmentContainer);
 						}
 					} 
