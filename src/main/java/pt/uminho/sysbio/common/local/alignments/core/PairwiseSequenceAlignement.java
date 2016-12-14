@@ -18,7 +18,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.biojava.nbio.alignment.Alignments;
 import org.biojava.nbio.alignment.Alignments.PairwiseSequenceAlignerType;
-import org.biojava.nbio.alignment.Alignments.PairwiseSequenceScorerType;
 import org.biojava.nbio.alignment.NeedlemanWunsch;
 import org.biojava.nbio.alignment.SimpleGapPenalty;
 import org.biojava.nbio.alignment.SmithWaterman;
@@ -242,11 +241,11 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 				double identityScore = ((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
 
 				double score = -1;
-				if(this.method.equals(PairwiseSequenceScorerType.LOCAL))
+				if(this.alignmentScoreType.equals(AlignmentScoreType.ALIGNMENT))
 					score = alignmentScore;
-				else if(this.method.equals(PairwiseSequenceScorerType.LOCAL_IDENTITIES))
+				else if(this.alignmentScoreType.equals(AlignmentScoreType.IDENTITY))
 					score = identityScore;
-				else if(this.method.equals(PairwiseSequenceScorerType.LOCAL_SIMILARITIES))
+				else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY))
 					score = similarityScore;
 
 				if(this.numberOfHelicesMap.get(query)>5)
@@ -378,11 +377,11 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 							double identityScore = ((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
 
 							double score = -1;
-							if(this.method.equals(PairwiseSequenceScorerType.LOCAL))
+							if(this.alignmentScoreType.equals(AlignmentScoreType.ALIGNMENT))
 								score = alignmentScore;
-							else if(this.method.equals(PairwiseSequenceScorerType.LOCAL_IDENTITIES))
+							else if(this.alignmentScoreType.equals(AlignmentScoreType.IDENTITY))
 								score = identityScore;
-							else if(this.method.equals(PairwiseSequenceScorerType.LOCAL_SIMILARITIES))
+							else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY))
 								score = similarityScore;
 
 							//TODO replace String array by Container
