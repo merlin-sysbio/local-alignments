@@ -26,9 +26,11 @@ import org.biojava.nbio.alignment.template.GapPenalty;
 import org.biojava.nbio.alignment.template.PairwiseSequenceAligner;
 import org.biojava.nbio.core.alignment.matrices.SimpleSubstitutionMatrix;
 import org.biojava.nbio.core.alignment.template.SubstitutionMatrix;
+import org.biojava.nbio.core.exceptions.CompoundNotFoundException;
 import org.biojava.nbio.core.sequence.ProteinSequence;
 import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
 import org.biojava.nbio.core.sequence.compound.AminoAcidCompoundSet;
+import org.biojava.nbio.core.sequence.template.AbstractSequence;
 import org.biojava.nbio.core.sequence.template.CompoundSet;
 
 import pt.uminho.ceb.biosystems.mew.utilities.datastructures.pair.Pair;
@@ -54,9 +56,9 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	private static int _MIN_RESIDUES = 100;
 	private static double _SCORE_INCREMENT = 0.2, _LENGTH_DIVISION = 2;
 	private ConcurrentLinkedQueue<String> queryArray;
-	private Map<String, ProteinSequence> staticSubjectMap; 
+	private Map<String, AbstractSequence<?>> staticSubjectMap; 
 	private Map<String,Integer> numberOfHelicesMap;
-	private ConcurrentHashMap<String, ProteinSequence> concurrentQueryMap;
+	private ConcurrentHashMap<String, AbstractSequence<?>> concurrentQueryMap;
 	private DatabaseAccess databaseAccess;
 	private Method method;
 	private double threshold;
@@ -92,7 +94,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	 * @param alignmentPurpose
 	 * @param alignmentScoreType
 	 */
-	public PairwiseSequenceAlignement(Method method, ConcurrentHashMap<String, ProteinSequence> concurrentQueryMap, Map<String, ProteinSequence> staticSubjectMap, 
+	public PairwiseSequenceAlignement(Method method, ConcurrentHashMap<String, AbstractSequence<?>> concurrentQueryMap, Map<String, AbstractSequence<?>> staticSubjectMap, 
 			ConcurrentLinkedQueue<String> queryArray, DatabaseAccess dba, double  threshold, Map<String, Integer> numberOfHelicesMap, 
 			ConcurrentHashMap<String, String> locus_ids, AtomicInteger counter, AtomicBoolean cancel, AlignmentPurpose alignmentPurpose, AlignmentScoreType alignmentScoreType) {
 
@@ -124,8 +126,8 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	 * @param alignmentPurpose
 	 * @param alignmentScoreType
 	 */
-	public PairwiseSequenceAlignement(Method method, ConcurrentHashMap<String, ProteinSequence> concurrentQueryMap, 
-			Map<String, ProteinSequence> staticSubjectMap, ConcurrentLinkedQueue<String> queryArray, 
+	public PairwiseSequenceAlignement(Method method, ConcurrentHashMap<String, AbstractSequence<?>> concurrentQueryMap, 
+			Map<String, AbstractSequence<?>> staticSubjectMap, ConcurrentLinkedQueue<String> queryArray, 
 			DatabaseAccess dba, double  threshold, Map<String, Integer> numberOfHelicesMap, 
 			ConcurrentHashMap<String, String> locus_ids, AlignmentPurpose alignmentPurpose, AlignmentScoreType alignmentScoreType) {
 
@@ -199,10 +201,11 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	 * @param query
 	 * @param conn
 	 * @throws SQLException 
+	 * @throws CompoundNotFoundException 
 	 */
-	private void getSimilarityTransport(String query, Connection conn) throws SQLException {
+	private void getSimilarityTransport(String query, Connection conn) throws SQLException, CompoundNotFoundException {
 
-		ProteinSequence querySequence= this.concurrentQueryMap.get(query);
+		AbstractSequence<?> querySequence= this.concurrentQueryMap.get(query);
 		int seqLength = querySequence.getLength();
 		Matrix matrix;
 		short gapOpenPenalty=10, gapExtensionPenalty=1;
@@ -223,18 +226,18 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 		SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd,matrix.getPath());
 
 		double helicesDependentSimilarity=this.threshold;
-		ProteinSequence tcdbAAsequence=null;
+		AbstractSequence<?> tcdbAAsequence=null;
 
 		for(String tcdbRecord: this.staticSubjectMap.keySet()) {
 
 			if(!this.cancel.get()) {
 
 				tcdbAAsequence = this.staticSubjectMap.get(tcdbRecord);
-
+				
 				if(this.method.equals(Method.SmithWaterman))
-					alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(querySequence, tcdbAAsequence, gp, sb);
+					alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(tcdbAAsequence.getSequenceAsString()), gp, sb);
 				else
-					alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(querySequence, tcdbAAsequence, gp, sb);
+					alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(tcdbAAsequence.getSequenceAsString()), gp, sb);
 
 				double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
 				double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
@@ -334,7 +337,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 			if(locusTags.isEmpty()) {
 
-				ProteinSequence querySequence= this.concurrentQueryMap.get(query);
+				AbstractSequence<?> querySequence= this.concurrentQueryMap.get(query);
 				int seqLength = querySequence.getLength();
 				Matrix matrix;
 				short gapOpenPenalty=10, gapExtensionPenalty=1;
@@ -349,7 +352,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 				Reader rd = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(matrix.getPath()));
 				SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd,matrix.getPath());
 
-				ProteinSequence genomeAAsequence=null;
+				AbstractSequence<?> genomeAAsequence=null;
 
 				double threshold = this.threshold;
 
@@ -368,9 +371,9 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 							genomeAAsequence = this.staticSubjectMap.get(genome);
 
 							if(this.method.equals(Method.SmithWaterman))
-								alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
+								alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()),new ProteinSequence(genomeAAsequence.getSequenceAsString()), gp, sb);
 							else
-								alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(querySequence, genomeAAsequence, gp, sb);
+								alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(genomeAAsequence.getSequenceAsString()), gp, sb);
 
 							double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
 							double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
@@ -447,7 +450,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 			String query_org = query_array [0].trim();
 			//String queryLocus = query_array[1].trim();
 
-			ProteinSequence querySequence= this.concurrentQueryMap.get(query);
+			AbstractSequence<?> querySequence= this.concurrentQueryMap.get(query);
 			int seqLength = querySequence.getLength();
 			
 			//parameters
@@ -462,7 +465,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 			Reader rd = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(matrix.getPath()));
 			SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd,matrix.getPath());
 
-			ProteinSequence genomeAAsequence=null;
+			AbstractSequence<?> genomeAAsequence=null;
 
 			double workingThreshold = this.threshold;
 
@@ -488,7 +491,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 						genomeAAsequence = this.staticSubjectMap.get(genome);
 
-						PairwiseSequenceAligner<ProteinSequence, AminoAcidCompound> result = Alignments.getPairwiseAligner(querySequence, genomeAAsequence, alignmentType, gp, sb);
+						PairwiseSequenceAligner<ProteinSequence, AminoAcidCompound> result = Alignments.getPairwiseAligner(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(genomeAAsequence.getSequenceAsString()), alignmentType, gp, sb);
 
 						double alignmentScore = result.getSimilarity();
 						double similarityScore = ((double) result.getPair().getNumSimilars()/result.getPair().getLength());

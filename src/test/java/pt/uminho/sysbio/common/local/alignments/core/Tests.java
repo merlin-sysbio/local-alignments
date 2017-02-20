@@ -143,13 +143,13 @@ public class Tests {
 		//		String uni_id2 = "C1B498";	// "Q93ZR6";
 		//		String uni_id1 = "A1TX06";
 		//		String uni_id2 = ("A1U572");
-//				String uni_id1 = "P49374";
-//				String uni_id2 = ("P0AGF4");
-//				ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id1)).openStream()).get(uni_id1);
-//				ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id2)).openStream()).get(uni_id2);
+				String uni_id1 = "P49374";
+				String uni_id2 = ("P0AGF4");
+				ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id1)).openStream()).get(uni_id1);
+				ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id2)).openStream()).get(uni_id2);
 
-		ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq1.txt"))).get("seq1");
-		ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq2.txt"))).get("seq2");
+//		ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq1.txt"))).get("seq1");
+//		ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq2.txt"))).get("seq2");
 
 		Matrix matrix = Matrix.BLOSUM62;
 		short gapOpenPenalty=10, gapExtensionPenalty=1;

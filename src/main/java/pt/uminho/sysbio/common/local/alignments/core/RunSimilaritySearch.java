@@ -28,6 +28,7 @@ import org.biojava.nbio.core.sequence.compound.AminoAcidCompoundSet;
 import org.biojava.nbio.core.sequence.io.FastaReader;
 import org.biojava.nbio.core.sequence.io.GenericFastaHeaderParser;
 import org.biojava.nbio.core.sequence.io.ProteinSequenceCreator;
+import org.biojava.nbio.core.sequence.template.AbstractSequence;
 
 import pt.uminho.sysbio.common.database.connector.databaseAPI.TransportersAPI;
 import pt.uminho.sysbio.common.database.connector.datatypes.Connection;
@@ -44,7 +45,7 @@ import pt.uminho.sysbio.merlin.utilities.DatabaseProgressStatus;
 public class RunSimilaritySearch extends Observable implements Observer {
 
 	private DatabaseAccess dbAccess;
-	private Map<String, ProteinSequence> staticGenesSet;
+	private Map<String, AbstractSequence<?>> staticGenesSet;
 	private boolean alreadyProcessed, processed;
 	private AtomicBoolean cancel;
 	private AtomicInteger counter;
@@ -52,7 +53,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	private int minimum_number_of_helices;
 	private double similarity_threshold;
 	private Method method;
-	private Map<String, ProteinSequence> querySequences;
+	private Map<String, AbstractSequence<?>> querySequences;
 	private Set<String> processedGenes;
 	private List<String> annotatedGenes;
 	private ConcurrentLinkedQueue<String> sequencesWithoutSimilarities;
@@ -80,10 +81,10 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 * @param idLocus
 	 * @throws Exception
 	 */
-	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, int minimum_number_of_helices,
+	public RunSimilaritySearch(DatabaseAccess dba, Map<String, AbstractSequence<?>> staticGenesSet, int minimum_number_of_helices,
 			double similarity_threshold, Method method, File genome_dir, int project_id, AlignmentScoreType alignmentScoreType, Map<String, String> idLocus) throws Exception {
 
-		Map<String, ProteinSequence> querySequences = new HashMap<String, ProteinSequence>();
+		Map<String, AbstractSequence<?>> querySequences = new HashMap<>();
 		if(genome_dir.isDirectory()) {
 
 			for(File genome_file:genome_dir.listFiles()) {
@@ -93,7 +94,9 @@ public class RunSimilaritySearch extends Observable implements Observer {
 					FastaReader<ProteinSequence, AminoAcidCompound> fastaReader = new FastaReader<ProteinSequence,AminoAcidCompound>(genome_file, 
 							new GenericFastaHeaderParser<ProteinSequence,AminoAcidCompound>(), 
 							new ProteinSequenceCreator(AminoAcidCompoundSet.getAminoAcidCompoundSet()));
-					Map<String, ProteinSequence> genome_map  = fastaReader.process();
+					
+					Map<String, AbstractSequence<?>> genome_map  =  new HashMap<>();
+					genome_map.putAll(fastaReader.process());
 
 					querySequences.putAll(genome_map);
 				}
@@ -128,8 +131,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 * @param idLocus
 	 * @throws Exception
 	 */
-	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, int minimum_number_of_helices, double similarity_threshold, 
-			Method method, Map<String, ProteinSequence> genome,
+	public RunSimilaritySearch(DatabaseAccess dba, Map<String, AbstractSequence<?>> staticGenesSet, int minimum_number_of_helices, double similarity_threshold, 
+			Method method, Map<String, AbstractSequence<?>> genome,
 			int project_id, AlignmentScoreType alignmentScoreType, Map<String, String> idLocus) throws Exception {
 
 		this.setCounter(new AtomicInteger(0));
@@ -162,8 +165,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 * @param alignmentScoreType
 	 * @throws Exception
 	 */
-	public RunSimilaritySearch(DatabaseAccess dba, Map<String, ProteinSequence> staticGenesSet, int minimum_number_of_helices, double similarity_threshold,  
-			Method method, Map<String, ProteinSequence> querySequences, 
+	public RunSimilaritySearch(DatabaseAccess dba, Map<String, AbstractSequence<?>> staticGenesSet, int minimum_number_of_helices, double similarity_threshold,  
+			Method method, Map<String, AbstractSequence<?>> querySequences, 
 			AtomicBoolean cancel, AtomicInteger querySize, AtomicInteger counter, 
 			int project_id, AlignmentScoreType alignmentScoreType) throws Exception {
 
@@ -195,8 +198,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 * @param d
 	 * @param alignment
 	 */
-	public RunSimilaritySearch(DatabaseAccess dbAccess, Map<String, ProteinSequence> staticGenesSet, double similarity_threshold, Method method, 
-			ConcurrentHashMap<String, ProteinSequence> orthologs, 
+	public RunSimilaritySearch(DatabaseAccess dbAccess, Map<String, AbstractSequence<?>> staticGenesSet, double similarity_threshold, Method method, 
+			ConcurrentHashMap<String, AbstractSequence<?>> orthologs, 
 			AtomicBoolean cancel, AtomicInteger querySize, AtomicInteger counter, 
 			int project_id, AlignmentScoreType alignmentScoreType) throws Exception {
 	
@@ -221,7 +224,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 * @param allSequences 
 	 * @throws Exception
 	 */
-	public void runTransportSearch(Map<String, Integer> transmembraneGenes, ConcurrentHashMap<String, ProteinSequence> allSequences) throws Exception {
+	public void runTransportSearch(Map<String, Integer> transmembraneGenes, ConcurrentHashMap<String, AbstractSequence<?>> allSequences) throws Exception {
 
 		Connection conn = new Connection(dbAccess);
 
@@ -311,7 +314,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 
 		boolean recursive = false;
 
-		ConcurrentHashMap<String, ProteinSequence> all_sequences = new ConcurrentHashMap<String, ProteinSequence>(querySequences);
+		ConcurrentHashMap<String, AbstractSequence<?>> all_sequences = new ConcurrentHashMap<>(querySequences);
 
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -326,7 +329,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			setChanged();
 			notifyObservers();
 
-			Map<String, ProteinSequence> ecNumberAnnotations = new HashMap<String, ProteinSequence>();
+			Map<String, AbstractSequence<?>> ecNumberAnnotations = new HashMap<>();
 			ecNumberAnnotations.putAll(this.staticGenesSet);
 
 			if(this.sequencesWithoutSimilarities==null) {
@@ -394,7 +397,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 * @return
 	 * @throws Exception
 	 */
-	public static Map<String, ProteinSequence> setTCDB(String url) throws Exception {
+	public static Map<String, AbstractSequence<?>> setTCDB(String url) throws Exception {
 
 		InputStream tcdbInputStream = (new URL(url)).openStream();
 		BufferedReader br= new BufferedReader(new InputStreamReader(tcdbInputStream));
@@ -413,7 +416,9 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				//tcdbFile,
 				new GenericFastaHeaderParser<ProteinSequence,AminoAcidCompound>(), 
 				new ProteinSequenceCreator(AminoAcidCompoundSet.getAminoAcidCompoundSet()));
-		Map<String, ProteinSequence> tcdb  = fastaReader.process();
+		
+		Map<String, AbstractSequence<?>> tcdb  =  new HashMap<>();
+		 tcdb.putAll(fastaReader.process());
 		return tcdb;
 	}
 
