@@ -20,6 +20,10 @@ public class AlignmentContainer {
 	private Method method;
 	private int[][][] scoreMatrix;
 	private int numIdenticals, numSimilars, queryLength, targetLength, alignmentLength;
+	private double coverageQuery;
+	private double coverageTarget;
+	private int gapsQuery;
+	private int gapsTarget;
 
 	/**
 	 * Alignment information container.
@@ -57,6 +61,53 @@ public class AlignmentContainer {
 		this.setAlignmentLength(alignmentLength);
 		this.setQueryLength(queryLength);
 		this.setTargetLength(targetLength);
+		this.setMethod(method);
+		this.setMatrix(matrix);
+		this.setAlignmentScoreType(alignmentScoreType);
+	}
+	
+	/**
+	 * @param query
+	 * @param target
+	 * @param ko
+	 * @param score
+	 * @param maxScore
+	 * @param minScore
+	 * @param alignedScore
+	 * @param numIdenticals
+	 * @param numSimilars
+	 * @param alignmentLength
+	 * @param queryLength
+	 * @param targetLength
+	 * @param coverageQuery
+	 * @param coverageTarget
+	 * @param gapsQuery
+	 * @param gapsTarget
+	 * @param matrix
+	 * @param method
+	 * @param alignmentScoreType
+	 */
+	public AlignmentContainer(String query, String target, String ko, double score, double maxScore, double minScore, double alignedScore,
+			int numIdenticals, int numSimilars, int alignmentLength, int queryLength, int targetLength, double coverageQuery, double coverageTarget, int gapsQuery, int gapsTarget, 
+			String matrix, Method method, AlignmentScoreType alignmentScoreType) {
+
+		super();
+		this.setQuery(query);
+		this.setTarget(target);
+		this.setKo(ko);
+		this.setScore(score);
+		this.setMaxScore(maxScore);
+		this.setMinScore(minScore);
+		this.setAlignedScore(alignedScore);
+		this.setNumIdenticals(numIdenticals);
+		this.setNumSimilars(numSimilars);
+		this.setAlignmentLength(alignmentLength);
+		this.setQueryLength(queryLength);
+		this.setTargetLength(targetLength);
+		this.setCoverageQuery(coverageQuery);
+		this.setCoverageTarget(coverageTarget);
+		this.setGapsQuery(gapsQuery);
+		this.setGapsTarget(gapsTarget); 
 		this.setMethod(method);
 		this.setMatrix(matrix);
 		this.setAlignmentScoreType(alignmentScoreType);
@@ -350,6 +401,62 @@ public class AlignmentContainer {
 		return ((double)this.getNumIdenticals()/(double)this.getAlignmentLength());
 	}
 
+	/**
+	 * @return the coverageQuery
+	 */
+	public double getCoverageQuery() {
+		return coverageQuery;
+	}
+
+	/**
+	 * @param coverageQuery the coverageQuery to set
+	 */
+	public void setCoverageQuery(double coverageQuery) {
+		this.coverageQuery = coverageQuery;
+	}
+
+	/**
+	 * @return the coverageTarget
+	 */
+	public double getCoverageTarget() {
+		return coverageTarget;
+	}
+
+	/**
+	 * @param coverageTarget the coverageTarget to set
+	 */
+	public void setCoverageTarget(double coverageTarget) {
+		this.coverageTarget = coverageTarget;
+	}
+
+	/**
+	 * @return the gapsQuery
+	 */
+	public int getGapsQuery() {
+		return gapsQuery;
+	}
+
+	/**
+	 * @param gapsQuery the gapsQuery to set
+	 */
+	public void setGapsQuery(int gapsQuery) {
+		this.gapsQuery = gapsQuery;
+	}
+
+	/**
+	 * @return the gapsTarget
+	 */
+	public int getGapsTarget() {
+		return gapsTarget;
+	}
+
+	/**
+	 * @param gapsTarget the gapsTarget to set
+	 */
+	public void setGapsTarget(int gapsTarget) {
+		this.gapsTarget = gapsTarget;
+	}
+
 	/* (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
@@ -360,10 +467,8 @@ public class AlignmentContainer {
 				+ ", ko=" + ko + ", score=" + score + ", alignedScore=" + alignedScore + ", maxScore=" + maxScore
 				+ ", minScore=" + minScore + ", method=" + method + ", scoreMatrix=" + Arrays.toString(scoreMatrix)
 				+ ", numIdenticals=" + numIdenticals + ", numSimilars=" + numSimilars + ", queryLength=" + queryLength
-				+ ", targetLength=" + targetLength + ", alignmentLength=" + alignmentLength  
-				+ ", getIdentityScore=" + this.getIdentityScore() + ", getNumSimilars=" + this.getSimilarityScore() 
-				+ ", getAlignmentScore=" + this.getAlignmentScore() 
-				+ "]";
+				+ ", targetLength=" + targetLength + ", alignmentLength=" + alignmentLength + ", coverageQuery="
+				+ coverageQuery + ", coverageTarget=" + coverageTarget + ", gapsQuery=" + gapsQuery + ", gapsTarget="
+				+ gapsTarget + "]";
 	}
-	
 }

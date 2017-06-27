@@ -64,6 +64,8 @@ public class Tests {
 		//		orthologs.add("B8XSI9");
 		//		orthologs.add("B8XSI7");
 		orthologs.add("A1U572");
+		//		orthologs.add("B8XSI9");
+		//		orthologs.add("B8XSI7");
 
 		for (String uniprot_id : orthologs) {
 
@@ -133,7 +135,7 @@ public class Tests {
 
 		}
 	}
-	
+
 	@Test
 	public void newAlignBetter() throws MalformedURLException, IOException, Exception{
 
@@ -143,14 +145,20 @@ public class Tests {
 		//		String uni_id2 = "C1B498";	// "Q93ZR6";
 		//		String uni_id1 = "A1TX06";
 		//		String uni_id2 = ("A1U572");
-//		String uni_id1 = "P49374";
-		String uni_id2 = ("P0AGF4");
-		String uni_id1 = "P0AGF4";
-				ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id1)).openStream()).get(uni_id1);
-				ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id2)).openStream()).get(uni_id2);
 
-//		ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq1.txt"))).get("seq1");
-//		ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq2.txt"))).get("seq2");
+		//		String uni_id1 = "P49374";
+		//		String uni_id2 = ("P0AGF4");
+		//		ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id1)).openStream()).get(uni_id1);
+		//		ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id2)).openStream()).get(uni_id2);
+
+
+		String uni_id1 = "C1B498";
+		String uni_id2 = ("UPI0000EB7843");
+		ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id1)).openStream()).get(uni_id1);
+		ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniparc/%s.fasta", uni_id2)).openStream()).get(uni_id2+" status=active");
+
+		//		ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq1.txt"))).get("seq1");
+		//		ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq2.txt"))).get("seq2");
 
 		Matrix matrix = Matrix.BLOSUM62;
 		short gapOpenPenalty=10, gapExtensionPenalty=1;
@@ -159,50 +167,57 @@ public class Tests {
 		CompoundSet<AminoAcidCompound> aa = new AminoAcidCompoundSet();
 		Reader rd = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(matrix.getPath()));
 		SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd, matrix.getPath());
-
-		PairwiseSequenceAligner<ProteinSequence, AminoAcidCompound> result =  Alignments.getPairwiseAligner(s1,s2, PairwiseSequenceAlignerType.LOCAL, gp, sb);
 		
+		PairwiseSequenceAligner<ProteinSequence, AminoAcidCompound> result =  Alignments.getPairwiseAligner(s1, s2, PairwiseSequenceAlignerType.LOCAL, gp, sb);
+
 		double minResidues = 100;
 		double score = ((double) result.getPair().getNumIdenticals()/result.getPair().getLength()), threshold = 0.3;
-		
+
 		System.out.println("Length " + result.getPair().getLength());
-		
+
 		if(result.getPair().getLength()>=minResidues) {
-			
+
 			if(score > threshold) {
-				
+
 				System.out.println("Length ok. score "+score+"\t"+(score > threshold));
 			}
 		}
 		else {
-			
+
 			while (result.getPair().getLength()<minResidues) {
-				
+
 				minResidues = minResidues/2;
 				threshold +=0.2;
 				System.out.println("new min residues "+minResidues);
 				System.out.println("new threshold "+threshold);
-				
+
 				if(threshold>1)
 					threshold=1;
 			}
-			
+
 			System.out.println("Length not ok "+minResidues+" score "+(score > threshold));
 		}
-		
+
 		System.out.println("Similarity "+result.getSimilarity());
 		System.out.println("Score "+result.getScore());
 		System.out.println("Min Score "+result.getMinScore());
 		System.out.println("Max Score "+result.getMaxScore());
 		System.out.println("Score calc "+ ((double) result.getScore()/result.getMaxScore()));
+		System.out.println("s1 "+ s1.getLength());
+		System.out.println("s2 "+ s2.getLength());
 		System.out.println("Length "+result.getPair().getLength());
 		System.out.println("query: "+result.getQuery().getLength()+"\ttarget: "+ result.getTarget().getLength() +"\tdistance: "+result.getDistance());
 		System.out.println("Similarity score "+ ((double) result.getPair().getNumSimilars()/result.getPair().getLength()));
 		System.out.println("Identity score "+ ((double) result.getPair().getNumIdenticals()/result.getPair().getLength()));
+		System.out.println("gaps query "+result.getPair().getQuery().getNumGaps()+" target "+result.getPair().getTarget().getNumGaps());
+		System.out.println("pair 1 "+result.getPair().getAlignedSequence(1).getNumGapPositions());
+		System.out.println("pair 2 "+result.getPair().getAlignedSequence(2).getCoverage());
+		System.out.println("coverage query alignment/sequence length "+ ((double) result.getPair().getLength() + " "+ result.getQuery().getLength()));
+		System.out.println("coverage target alignment/sequence length "+ ((double) result.getPair().getLength() + " "+ result.getTarget().getLength()));
 		System.out.println();
 	}
 
-	@Test
+	//@Test
 	public void newAlign() throws MalformedURLException, IOException, Exception{
 
 		System.out.println("######################### new sw align #######################");
@@ -211,11 +226,11 @@ public class Tests {
 		//		String uni_id2 = "C1B498";	// "Q93ZR6";
 		//		String uni_id1 = "A1TX06";
 		//		String uni_id2 = ("A1U572");
-//				String uni_id1 = "P49374";
-				String uni_id1 = "P0AGF4";
-				String uni_id2 = ("P0AGF4");
-				ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id1)).openStream()).get(uni_id1);
-				ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id2)).openStream()).get(uni_id2);
+
+		//				String uni_id1 = "P49374";
+		//				String uni_id2 = ("P0AGF4");
+		//				ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id1)).openStream()).get(uni_id1);
+		//				ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new URL(String.format("http://www.uniprot.org/uniprot/%s.fasta", uni_id2)).openStream()).get(uni_id2);
 
 //		ProteinSequence s1 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq1.txt"))).get("seq1");
 //		ProteinSequence s2 = FastaReaderHelper.readFastaProteinSequence(new FileInputStream(new File("C:/Users/Oscar Dias/Desktop/seq2.txt"))).get("seq2");
