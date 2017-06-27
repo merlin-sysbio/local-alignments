@@ -310,6 +310,84 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	/**
 	 * @throws Exception
 	 */
+	public void run_OrthologGapsSearch(ConcurrentHashMap<String, String[]> alignmentResults) throws Exception {
+
+		boolean recursive = false;
+
+		ConcurrentHashMap<String, AbstractSequence<?>> all_sequences = new ConcurrentHashMap<>(querySequences);
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		if(all_sequences.keySet().size()>0) {
+
+			this.setAlreadyProcessed(false);
+			/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			List<Thread> threads = new ArrayList<Thread>();
+			ConcurrentLinkedQueue<String> queryArray = new ConcurrentLinkedQueue<String>(querySequences.keySet());
+
+			this.querySize.set(new Integer(all_sequences.size()));
+			setChanged();
+			notifyObservers();
+
+			Map<String, AbstractSequence<?>> ecNumberAnnotations = new HashMap<>();
+			ecNumberAnnotations.putAll(this.staticGenesSet);
+
+			if(this.sequencesWithoutSimilarities==null) {
+
+				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty())
+					ecNumberAnnotations.keySet().retainAll(this.annotatedGenes);
+
+				if(!recursive) {
+
+					this.sequencesWithoutSimilarities = new ConcurrentLinkedQueue<String>();
+					this.sequencesWithoutSimilarities.addAll(queryArray);
+				}
+			}
+			else  {
+
+				recursive = true;
+				queryArray.retainAll(this.sequencesWithoutSimilarities);
+			}
+
+			int numberOfCores = Runtime.getRuntime().availableProcessors();
+
+			if(queryArray.size()<numberOfCores)
+				numberOfCores=queryArray.size();
+
+			System.out.println("number Of threads: "+numberOfCores);
+
+			for(int i=0; i<numberOfCores; i++) {
+
+				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ecNumberAnnotations, queryArray, this.dbAccess,
+						similarity_threshold, null, null, this.counter, this.cancel, AlignmentPurpose.ORTHOLOGS, this.alignmentScoreType, 
+						alignmentResults);
+				
+				((PairwiseSequenceAlignement) lc).setSequencesWithoutSimilarities(this.sequencesWithoutSimilarities);
+				((PairwiseSequenceAlignement) lc).setEc_number(this.ec_number);
+				((PairwiseSequenceAlignement) lc).setModules(this.modules);
+				((PairwiseSequenceAlignement) lc).setClosestOrthologs(this.closestOrthologs);
+				((PairwiseSequenceAlignement) lc).setReferenceTaxonomyScore(this.referenceTaxonomyScore);
+				((PairwiseSequenceAlignement) lc).setKegg_taxonomy_scores(this.kegg_taxonomy_scores);
+				((PairwiseSequenceAlignement) lc).setReferenceTaxonomyThreshold(this.referenceTaxonomyThreshold);
+
+				((PairwiseSequenceAlignement) lc).addObserver(this); 
+				Thread thread = new Thread(lc);
+				threads.add(thread);
+				System.out.println("Start "+i);
+				thread.start();
+			}
+
+			for(Thread thread :threads)
+				thread.join();
+
+		}
+		else {
+
+			this.setAlreadyProcessed(true);
+		}
+		this.setProcessed(true);
+	}
+	
 	public void run_OrthologsSearch() throws Exception {
 
 		boolean recursive = false;

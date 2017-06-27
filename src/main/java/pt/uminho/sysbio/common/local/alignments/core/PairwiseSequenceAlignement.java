@@ -77,6 +77,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	private String ko;
 	private AlignmentScoreType alignmentScoreType;
 	private double minAlignedResidues;
+	private ConcurrentHashMap<String, String[]> alignmentResults;
 
 	/**
 	 * Perform multiple sequence alignments.
@@ -109,9 +110,31 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 		this.setCounter(counter);
 		this.cancel = cancel;
 		this.alignmentPurpose = alignmentPurpose;
-		this.alignmentScoreType = alignmentScoreType; 
+		this.alignmentScoreType = alignmentScoreType;
+		this.alignmentResults = new ConcurrentHashMap<>();
+	}
+	
+	public PairwiseSequenceAlignement(Method method, ConcurrentHashMap<String, AbstractSequence<?>> concurrentQueryMap, Map<String, AbstractSequence<?>> staticSubjectMap, 
+			ConcurrentLinkedQueue<String> queryArray, DatabaseAccess dba, double  threshold, Map<String, Integer> numberOfHelicesMap, 
+			ConcurrentHashMap<String, String> locus_ids, AtomicInteger counter, AtomicBoolean cancel, AlignmentPurpose alignmentPurpose, AlignmentScoreType alignmentScoreType, 
+			ConcurrentHashMap<String, String[]> alignmentResults) {
+
+		this.method=method;
+		this.databaseAccess =dba;
+		this.queryArray = queryArray;
+		this.staticSubjectMap = staticSubjectMap;
+		this.concurrentQueryMap = concurrentQueryMap;
+		this.threshold=threshold;
+		this.numberOfHelicesMap=numberOfHelicesMap;
+		this.locus_ids = locus_ids;
+		this.setCounter(counter);
+		this.cancel = cancel;
+		this.alignmentPurpose = alignmentPurpose;
+		this.alignmentScoreType = alignmentScoreType;
+		this.alignmentResults = alignmentResults;
 	}
 
+	
 	/**
 	 * Perform multiple sequence alignments.
 	 * 
@@ -143,6 +166,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 		this.cancel = new AtomicBoolean(false);
 		this.alignmentPurpose = alignmentPurpose;
 		this.alignmentScoreType = alignmentScoreType; 
+		this.alignmentResults = new ConcurrentHashMap<>();
 	}
 
 	@Override
@@ -164,7 +188,8 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 				else if(this.alignmentPurpose.equals(AlignmentPurpose.ORTHOLOGS)) {
 
 					Connection conn = new Connection(this.databaseAccess);
-					this.getSimilarityOrthologs(query,conn);
+					this.alignmentResults.put(query, this.getSimilarityOrthologs(query,conn));
+					
 					conn.closeConnection();
 				}
 				else if(this.alignmentPurpose.equals(AlignmentPurpose.OTHER)) {
@@ -324,10 +349,12 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	 * @param conn
 	 * @throws SQLException 
 	 */
-	private void getSimilarityOrthologs(String query, Connection conn) throws SQLException {
+	private String[] getSimilarityOrthologs(String query, Connection conn) throws SQLException {
 
 		try {
 
+			String[] similarityData = new String[4];
+			
 			String [] query_array = query.split(":"); 
 
 			String query_org = query_array [0].trim();
@@ -361,11 +388,13 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 					System.out.println("Using reference taxonomy:\t"+this.referenceTaxonomyScore+"\tthreshold\t"+this.referenceTaxonomyThreshold);
 					threshold = this.referenceTaxonomyThreshold;
 				}
-
-				if(querySequence.getLength()>0) {
+				
+				//System.out.println(query_org+"\t"+seqLength);
+				
+				if(seqLength>0) {
 
 					for(String genome: this.staticSubjectMap.keySet()) {
-
+						
 						if(!this.cancel.get()) {
 
 							genomeAAsequence = this.staticSubjectMap.get(genome);
@@ -387,24 +416,22 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 							else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY))
 								score = similarityScore;
 
-							//TODO replace String array by Container
-
 							if(score > threshold) {
 
 								//no_similarity = false;
 
 								this.sequencesWithoutSimilarities.remove(query);
 
-								String[] similarityData = new String[4];
-
 								similarityData[0]= query;
 								similarityData[1]= this.staticSubjectMap.get(genome).getOriginalHeader();
 								similarityData[2]= alignmentScore+"";
 								similarityData[3]= matrix.toString();
-
-								PairwiseSequenceAlignement.loadOrthologsData(similarityData, conn, ec_number, closestOrthologs, modules, this.databaseAccess.get_database_type());
-
-								similarityData=null;
+								
+								if(modules!=null) {
+									
+									PairwiseSequenceAlignement.loadOrthologsData(similarityData, conn, ec_number, closestOrthologs, modules, this.databaseAccess.get_database_type());
+									similarityData=null;
+								}
 							}
 							alignmentMethod=null;
 						}
@@ -417,16 +444,16 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 				for(String locus : locusTags) {
 
-					String[] similarityData = new String[4];
-
 					similarityData[0]= query;
 					similarityData[1]= locus;
 					similarityData[2]= null;
 					similarityData[3]= null;
 
-					PairwiseSequenceAlignement.loadOrthologsData(similarityData, conn, ec_number, closestOrthologs, modules, this.databaseAccess.get_database_type());
+					if(modules!=null)
+						PairwiseSequenceAlignement.loadOrthologsData(similarityData, conn, ec_number, closestOrthologs, modules, this.databaseAccess.get_database_type());
 				}
 			}
+			return similarityData;
 		}
 		catch (Exception e) {
 
@@ -435,7 +462,9 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 			System.err.println();
 			System.out.println();
 		}
+		return null;
 	}
+	
 
 	/**
 	 * @param query
@@ -843,6 +872,14 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	 */
 	public void setMinAlignedResidues(double minAlignedResidues) {
 		this.minAlignedResidues = minAlignedResidues;
+	}
+
+	public ConcurrentHashMap<String, String[]> getAlignmentResults() {
+		return alignmentResults;
+	}
+
+	public void setAlignmentResults(ConcurrentHashMap<String, String[]> alignmentResults) {
+		this.alignmentResults = alignmentResults;
 	}
 
 }
