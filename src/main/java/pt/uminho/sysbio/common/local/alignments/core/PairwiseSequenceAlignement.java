@@ -353,7 +353,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 		try {
 
-			String[] similarityData = new String[4];
+			String[] similarityData = new String[6];
 			
 			String [] query_array = query.split(":"); 
 
@@ -426,6 +426,8 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 								similarityData[1]= this.staticSubjectMap.get(genome).getOriginalHeader();
 								similarityData[2]= alignmentScore+"";
 								similarityData[3]= matrix.toString();
+								similarityData[4]=alignmentMethod.getPair().getAlignedSequence(1).getCoverage()+"";
+								similarityData[5]=alignmentMethod.getPair().getAlignedSequence(2).getCoverage()+"";
 								
 								if(modules!=null) {
 									
