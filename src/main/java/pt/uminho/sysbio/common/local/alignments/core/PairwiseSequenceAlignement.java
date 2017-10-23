@@ -2,10 +2,8 @@ package pt.uminho.sysbio.common.local.alignments.core;
 
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Observable;
@@ -321,27 +319,11 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 		String idLT = this.locus_ids.get(data[0]);
 		Statement stmt = conn.createStatement();
-		ResultSet rs = stmt.executeQuery("SELECT id FROM sw_hits WHERE tcdb_id='"+data[2]+"' AND acc='"+data[1]+"'");
-
-		if(!rs.next()) {
-
-			stmt.execute("INSERT INTO sw_hits (acc,tcdb_id) VALUES ('"+data[1]+"', '"+data[2]+"')");
-			rs = stmt.executeQuery("SELECT LAST_INSERT_ID();");
-			rs.next();
-		}
-
-		String idHIT = rs.getString(1);
-
-		rs = stmt.executeQuery("SELECT * FROM sw_similarities WHERE sw_report_id="+idLT+" AND sw_hit_id="+idHIT+"");
-
-		if(!rs.next()) {
-
-			stmt.execute("INSERT INTO sw_similarities (sw_report_id,sw_hit_id,similarity) VALUES("+idLT+","+idHIT+","+data[3]+")");
-		}
+		
+		HomologyAPI.loadTrasnportInfo(stmt, data, idLT);
 
 		stmt.close();
 		stmt=null;
-		rs.close();
 	}
 
 	/**
@@ -623,7 +605,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	public static void loadOrthologsData(String[] data, Connection conn, String ec_number, 
 			Map<String, Set<String>> closestOrthologs, Map<String, Set<String>> modules, DatabaseType databaseType) throws SQLException {
 
-		String queryLocus = data[0].split(":")[1];
+		
 		//FIXME
 		System.out.println();
 		System.out.println(data[1]);
@@ -636,7 +618,6 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 		synchronized (conn) {
 
-			ResultSet rs = null;
 			Pair<String, String> geneNames = HomologyAPI.getGeneLocusFromHomologyData(data[1], statement);
 			String idGene = ModelAPI.loadGene(geneNames, data[1], null, statement, "KO",databaseType);
 
@@ -670,102 +651,12 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 			//				idGene = rs.getString(1);
 			//			}
 
-			if(idGene != null) {
-
-				for (String ortholog : closestOrthologs.get(data[0])) {
-
-					rs = statement.executeQuery("SELECT id FROM orthology WHERE entry_id ='"+ortholog+"' AND (locus_id is null OR locus_id = '')");
-
-					String orthology_id = "";
-
-					if(rs.next()) {
-
-						orthology_id = rs.getString(1);
-						statement.execute("UPDATE orthology SET locus_id = '"+queryLocus+"' WHERE entry_id = '"+ortholog+"';");
-					}
-					else {
-
-						rs = statement.executeQuery("SELECT id FROM orthology WHERE entry_id ='"+ortholog+"' AND locus_id ='"+queryLocus+"';");
-
-						if(!rs.next()) {
-
-							statement.execute("INSERT INTO orthology (entry_id, locus_id) VALUES ('"+ortholog+"', '"+queryLocus+"')");
-							rs = statement.executeQuery("SELECT LAST_INSERT_ID();");
-							rs.next();
-						}
-						orthology_id = rs.getString(1);
-					}
-
-					rs = statement.executeQuery("SELECT * FROM gene_has_orthology WHERE gene_idgene='"+idGene+"' AND orthology_id='"+orthology_id+"'");
-
-					if(rs.next()) {
-
-						System.out.println("Entry exists!! "+idGene+"\t"+orthology_id);
-					}
-					else {
-
-						statement.execute("INSERT INTO gene_has_orthology (gene_idgene,orthology_id, similarity) VALUES("+idGene+","+orthology_id+", "+data[2]+" )");
-					}
-
-					rs = statement.executeQuery("SELECT protein_idprotein FROM enzyme WHERE ecnumber='"+ec_number+"'");
-					rs.next();
-					int protein_idprotein = rs.getInt(1);
-
-					rs = statement.executeQuery("SELECT module_id, note FROM subunit WHERE gene_idgene='"+idGene+"' AND enzyme_ecnumber = '"+ec_number+"'");
-
-					List<String> modules_ids = new ArrayList<String>();
-					boolean exists = false, noModules=true;
-
-					String note = "unannotated";
-
-					while(rs.next()) {
-
-						exists = true;
-
-						if(rs.getInt(1)>0) {
-
-							noModules = false;
-							modules_ids.add(rs.getString(1));
-						}
-
-						if(rs.getString(2)!=null && !rs.getString(2).equalsIgnoreCase("null"))
-							note = rs.getString(2);
-						else
-							note = "";
-					}
-
-					for(String module_id : modules.get(ortholog)) {
-
-						if(modules_ids.contains(module_id)) {
-
-						}
-						else {
-
-							if(exists) {
-
-								if(noModules) {
-
-									statement.execute("UPDATE subunit SET module_id = "+module_id+" WHERE gene_idgene = '"+idGene+"' AND enzyme_ecnumber = '"+ec_number+"'");
-									noModules = false;
-									modules_ids.add(module_id);
-								}
-							}
-							else {
-
-								statement.execute("INSERT INTO subunit (module_id, gene_idgene, enzyme_ecnumber, enzyme_protein_idprotein, note) " +
-										"VALUES("+module_id+", "+idGene+", '"+ec_number+"', "+protein_idprotein+", '"+note+"')");
-								//exists = true;
-							}
-
-						}
-					}
-				}
-			}
-
-			rs.close();
+			if(idGene != null) 
+				HomologyAPI.loadOrthologsInfo(idGene, statement, closestOrthologs, data, ec_number, modules);
+				
 		} 
 		statement.close();
-		statement=null;
+		
 	}
 
 
