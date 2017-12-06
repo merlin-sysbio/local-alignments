@@ -3,7 +3,8 @@ package pt.uminho.sysbio.common.local.alignments.core;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.sql.SQLException;
-import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Observable;
@@ -23,27 +24,24 @@ import org.biojava.nbio.alignment.template.AbstractPairwiseSequenceAligner;
 import org.biojava.nbio.alignment.template.GapPenalty;
 import org.biojava.nbio.alignment.template.PairwiseSequenceAligner;
 import org.biojava.nbio.core.alignment.matrices.SimpleSubstitutionMatrix;
+import org.biojava.nbio.core.alignment.template.AlignedSequence;
 import org.biojava.nbio.core.alignment.template.SubstitutionMatrix;
 import org.biojava.nbio.core.exceptions.CompoundNotFoundException;
 import org.biojava.nbio.core.sequence.ProteinSequence;
+import org.biojava.nbio.core.sequence.SequenceOptimizationHints.SequenceUsage;
 import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
 import org.biojava.nbio.core.sequence.compound.AminoAcidCompoundSet;
 import org.biojava.nbio.core.sequence.template.AbstractSequence;
 import org.biojava.nbio.core.sequence.template.CompoundSet;
 
-import pt.uminho.ceb.biosystems.mew.utilities.datastructures.pair.Pair;
-import pt.uminho.sysbio.common.database.connector.databaseAPI.HomologyAPI;
-import pt.uminho.sysbio.common.database.connector.databaseAPI.ModelAPI;
-import pt.uminho.sysbio.common.database.connector.databaseAPI.TransportersAPI;
-import pt.uminho.sysbio.common.database.connector.datatypes.Connection;
-import pt.uminho.sysbio.common.database.connector.datatypes.DatabaseAccess;
-import pt.uminho.sysbio.common.database.connector.datatypes.Enumerators.DatabaseType;
-import pt.uminho.sysbio.common.local.alignments.core.Enumerators.AlignmentPurpose;
-import pt.uminho.sysbio.common.local.alignments.core.Enumerators.AlignmentScoreType;
-import pt.uminho.sysbio.common.local.alignments.core.Enumerators.Matrix;
-import pt.uminho.sysbio.common.local.alignments.core.Enumerators.Method;
-import pt.uminho.sysbio.common.local.alignments.core.datatype.AlignmentContainer;
-import pt.uminho.sysbio.merlin.utilities.DatabaseProgressStatus;
+import com.sun.tools.xjc.model.SymbolSpace;
+
+import pt.uminho.sysbio.merIin.utilities.capsules.AlignmentCapsule;
+import pt.uminho.sysbio.merlin.utilities.Enumerators.AlignmentPurpose;
+import pt.uminho.sysbio.merlin.utilities.Enumerators.AlignmentScoreType;
+import pt.uminho.sysbio.merlin.utilities.Enumerators.Matrix;
+import pt.uminho.sysbio.merlin.utilities.Enumerators.Method;
+
 
 /**
  * @author ODias
@@ -55,12 +53,9 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	private static double _SCORE_INCREMENT = 0.2, _LENGTH_DIVISION = 2;
 	private ConcurrentLinkedQueue<String> queryArray;
 	private Map<String, AbstractSequence<?>> staticSubjectMap; 
-	private Map<String,Integer> numberOfHelicesMap;
 	private ConcurrentHashMap<String, AbstractSequence<?>> concurrentQueryMap;
-	private DatabaseAccess databaseAccess;
 	private Method method;
 	private double threshold;
-	private ConcurrentHashMap<String, String> locus_ids;
 	private AtomicInteger counter;
 	private AtomicBoolean cancel;
 	private AlignmentPurpose alignmentPurpose;
@@ -71,11 +66,12 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	private Map<String, Integer> kegg_taxonomy_scores;
 	private int referenceTaxonomyScore;
 	private double referenceTaxonomyThreshold;
-	private ConcurrentLinkedQueue<AlignmentContainer> alignmentContainerSet;
+	private ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet;
 	private String ko;
 	private AlignmentScoreType alignmentScoreType;
 	private double minAlignedResidues;
-	private ConcurrentHashMap<String, String[]> alignmentResults;
+	private Map <String, Double> querySpecificThreshold;
+	private Map<String, List<String>> sequenceIdsSet;
 
 	/**
 	 * Perform multiple sequence alignments.
@@ -84,94 +80,36 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	 * @param concurrentQueryMap
 	 * @param staticSubjectMap
 	 * @param queryArray
-	 * @param dba
 	 * @param threshold
-	 * @param numberOfHelicesMap
-	 * @param locus_ids
 	 * @param counter
 	 * @param cancel
 	 * @param alignmentPurpose
 	 * @param alignmentScoreType
+	 * @param alignmentContainerSet
 	 */
 	public PairwiseSequenceAlignement(Method method, ConcurrentHashMap<String, AbstractSequence<?>> concurrentQueryMap, Map<String, AbstractSequence<?>> staticSubjectMap, 
-			ConcurrentLinkedQueue<String> queryArray, DatabaseAccess dba, double  threshold, Map<String, Integer> numberOfHelicesMap, 
-			ConcurrentHashMap<String, String> locus_ids, AtomicInteger counter, AtomicBoolean cancel, AlignmentPurpose alignmentPurpose, AlignmentScoreType alignmentScoreType) {
+			ConcurrentLinkedQueue<String> queryArray, double  threshold,
+			AtomicInteger counter, AtomicBoolean cancel, AlignmentPurpose alignmentPurpose, AlignmentScoreType alignmentScoreType,
+			ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet) {
 
 		this.method=method;
 		this.queryArray = queryArray;
 		this.staticSubjectMap = staticSubjectMap;
 		this.concurrentQueryMap = concurrentQueryMap;
-		this.databaseAccess = dba;
 		this.threshold=threshold;
-		this.numberOfHelicesMap=numberOfHelicesMap;
-		this.locus_ids = locus_ids;
 		this.setCounter(counter);
 		this.cancel = cancel;
 		this.alignmentPurpose = alignmentPurpose;
 		this.alignmentScoreType = alignmentScoreType;
-		this.alignmentResults = new ConcurrentHashMap<>();
+		this.alignmentContainerSet = alignmentContainerSet;
+		this.querySpecificThreshold = new HashMap<>();
 	}
 	
-	public PairwiseSequenceAlignement(Method method, ConcurrentHashMap<String, AbstractSequence<?>> concurrentQueryMap, Map<String, AbstractSequence<?>> staticSubjectMap, 
-			ConcurrentLinkedQueue<String> queryArray, DatabaseAccess dba, double  threshold, Map<String, Integer> numberOfHelicesMap, 
-			ConcurrentHashMap<String, String> locus_ids, AtomicInteger counter, AtomicBoolean cancel, AlignmentPurpose alignmentPurpose, AlignmentScoreType alignmentScoreType, 
-			ConcurrentHashMap<String, String[]> alignmentResults) {
-
-		this.method=method;
-		this.databaseAccess =dba;
-		this.queryArray = queryArray;
-		this.staticSubjectMap = staticSubjectMap;
-		this.concurrentQueryMap = concurrentQueryMap;
-		this.threshold=threshold;
-		this.numberOfHelicesMap=numberOfHelicesMap;
-		this.locus_ids = locus_ids;
-		this.setCounter(counter);
-		this.cancel = cancel;
-		this.alignmentPurpose = alignmentPurpose;
-		this.alignmentScoreType = alignmentScoreType;
-		this.alignmentResults = alignmentResults;
-	}
-
-	
-	/**
-	 * Perform multiple sequence alignments.
-	 * 
-	 * @param method
-	 * @param concurrentQueryMap
-	 * @param staticSubjectMap
-	 * @param queryArray
-	 * @param dba
-	 * @param threshold
-	 * @param numberOfHelicesMap
-	 * @param locus_ids
-	 * @param alignmentPurpose
-	 * @param alignmentScoreType
-	 */
-	public PairwiseSequenceAlignement(Method method, ConcurrentHashMap<String, AbstractSequence<?>> concurrentQueryMap, 
-			Map<String, AbstractSequence<?>> staticSubjectMap, ConcurrentLinkedQueue<String> queryArray, 
-			DatabaseAccess dba, double  threshold, Map<String, Integer> numberOfHelicesMap, 
-			ConcurrentHashMap<String, String> locus_ids, AlignmentPurpose alignmentPurpose, AlignmentScoreType alignmentScoreType) {
-
-		this.method=method;
-		this.queryArray = queryArray;
-		this.staticSubjectMap = staticSubjectMap;
-		this.concurrentQueryMap = concurrentQueryMap;
-		this.databaseAccess = dba;
-		this.threshold=threshold;
-		this.numberOfHelicesMap=numberOfHelicesMap;
-		this.locus_ids = locus_ids;
-		this.counter = new AtomicInteger(0);
-		this.cancel = new AtomicBoolean(false);
-		this.alignmentPurpose = alignmentPurpose;
-		this.alignmentScoreType = alignmentScoreType; 
-		this.alignmentResults = new ConcurrentHashMap<>();
-	}
-
 	@Override
 	public void run() {
 
 		final int size = this.queryArray.size();
-
+		
 		while(this.queryArray.size()>0 && !this.cancel.get()) {
 
 			String query = this.queryArray.poll();
@@ -179,16 +117,17 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 				if(this.alignmentPurpose.equals(AlignmentPurpose.TRANSPORT)) {
 
-					Connection conn = new Connection(this.databaseAccess);
-					this.getSimilarityTransport(query,conn);
-					conn.closeConnection();
+					this.alignmentContainerSet.addAll(new ArrayList<>(this.getSimilarityTransport(query)));
 				}
 				else if(this.alignmentPurpose.equals(AlignmentPurpose.ORTHOLOGS)) {
-
-					Connection conn = new Connection(this.databaseAccess);
-					this.alignmentResults.put(query, this.getSimilarityOrthologs(query,conn));
 					
-					conn.closeConnection();
+					System.out.println("3.2 getSimilarityOrthologs for -----> " + query);
+
+					this.alignmentContainerSet.addAll(new ArrayList<>(this.getSimilarityOrthologs(query)));
+					
+					System.out.println("3.3 complete for -----> " + query);
+					
+					
 				}
 				else if(this.alignmentPurpose.equals(AlignmentPurpose.OTHER)) {
 
@@ -217,6 +156,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 		setChanged();
 		notifyObservers();
+		System.out.println("3.4 alignmentcontainerSet -------> " + alignmentContainerSet);
 	}
 
 
@@ -226,8 +166,10 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	 * @throws SQLException 
 	 * @throws CompoundNotFoundException 
 	 */
-	private void getSimilarityTransport(String query, Connection conn) throws SQLException, CompoundNotFoundException {
+	private List<AlignmentCapsule> getSimilarityTransport(String query) throws SQLException, CompoundNotFoundException {
 
+		List<AlignmentCapsule> similarityData = new ArrayList<>();
+		
 		AbstractSequence<?> querySequence= this.concurrentQueryMap.get(query);
 		int seqLength = querySequence.getLength();
 		Matrix matrix;
@@ -248,7 +190,6 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 		Reader rd = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(matrix.getPath()));
 		SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd,matrix.getPath());
 
-		double helicesDependentSimilarity=this.threshold;
 		AbstractSequence<?> tcdbAAsequence=null;
 
 		for(String tcdbRecord: this.staticSubjectMap.keySet()) {
@@ -273,81 +214,77 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 					score = identityScore;
 				else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY))
 					score = similarityScore;
+				
+				double specificThreshold = this.threshold;
+				if (this.querySpecificThreshold.containsKey(query))
+					specificThreshold = this.querySpecificThreshold.get(query);
 
-				if(this.numberOfHelicesMap.get(query)>5)
-					helicesDependentSimilarity=(1-((this.numberOfHelicesMap.get(query)/2-2)*0.1))*this.threshold;
-
-				if(score>helicesDependentSimilarity && score>(this.threshold/2)) {
+				if(score>specificThreshold) {
 
 					if(this.sequencesWithoutSimilarities!=null && this.sequencesWithoutSimilarities.contains(query))
 						this.sequencesWithoutSimilarities.remove(query);
 
-					String[] similarityData = new String[6];
-
-					similarityData[0]= new StringTokenizer(query," ").nextToken();
+					String query2 = new StringTokenizer(query," ").nextToken();
 
 					StringTokenizer st = new StringTokenizer(this.staticSubjectMap.get(tcdbRecord).getOriginalHeader(),"|");
 					st.nextToken();
 					st.nextToken();
-					similarityData[1]= st.nextToken().toUpperCase();
-					similarityData[2]= st.nextToken().split(" ")[0].toUpperCase();
+					
+					String target = st.nextToken().toUpperCase();
+					String tcdbID = st.nextToken().split(" ")[0].toUpperCase();
 
-					similarityData[3]= alignmentScore+"";
+//					similarityData[3]= alignmentScore+"";
 
-					similarityData[4]= matrix.toString();
+//					similarityData[4]= matrix.toString();
 
-					similarityData[5]= this.numberOfHelicesMap.get(query).toString();
+//					similarityData[5]= this.numberOfHelicesMap.get(query).toString();			VERIFICAR SE ESTE FAZ FALTA!!!!!!!!!!!!!!
+					
+					AlignmentCapsule container = new AlignmentCapsule(query2, target, tcdbID, matrix.toString(), alignmentScore);
+					similarityData.add(container);
 
-					this.loadTransportData(similarityData, conn);
+//					this.loadTransportData(similarityData, conn);
 
-					similarityData=null;
+//					similarityData=null;
 				}
 				alignmentMethod=null;
 			}
 		}
 
-		if(!this.cancel.get())
-			TransportersAPI.setProcessed(this.locus_ids.get(query), conn, DatabaseProgressStatus.PROCESSED.toString());
+		return similarityData;
 	}
 
-	/**
-	 * @param data
-	 * @param conn
-	 * @throws SQLException
-	 */
-	public void loadTransportData(String[] data, Connection conn) throws SQLException {
 
-		String idLT = this.locus_ids.get(data[0]);
-		Statement stmt = conn.createStatement();
-		
-		HomologyAPI.loadTrasnportInfo(stmt, data, idLT);
-
-		stmt.close();
-		stmt=null;
-	}
 
 	/**
 	 * @param query_id
 	 * @param conn
 	 * @throws SQLException 
 	 */
-	private String[] getSimilarityOrthologs(String query, Connection conn) throws SQLException {
+	private List<AlignmentCapsule> getSimilarityOrthologs(String query) throws SQLException {
 
 		try {
+			
+			System.out.println("3.2.1 query --->" + query);
 
-			String[] similarityData = new String[6];
+//			String[] similarityData = new String[6];
+			
+			List<AlignmentCapsule> similarityData = new ArrayList<>();
 			
 			String [] query_array = query.split(":"); 
 
 			String query_org = query_array [0].trim();
 			String queryLocus = query_array[1].trim();
+			
+			System.out.println("3.2.2 sequenceIDsSet -------> " + sequenceIdsSet);
 
-			List<String> locusTags = ModelAPI.checkDatabase(conn, queryLocus);
-
-			if(locusTags.isEmpty()) {
-
+			if(!sequenceIdsSet.containsKey(queryLocus) || sequenceIdsSet.get(queryLocus).isEmpty()) {
+				
 				AbstractSequence<?> querySequence= this.concurrentQueryMap.get(query);
+				
 				int seqLength = querySequence.getLength();
+				
+				System.out.println("3.2.2.1 querySequence size -------> " + seqLength);
+				
 				Matrix matrix;
 				short gapOpenPenalty=10, gapExtensionPenalty=1;
 
@@ -364,6 +301,8 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 				AbstractSequence<?> genomeAAsequence=null;
 
 				double threshold = this.threshold;
+				
+				System.out.println("3.2.2.2 threshold -------> " + threshold);
 
 				if(this.kegg_taxonomy_scores.get(query_org)>=this.referenceTaxonomyScore) {
 
@@ -371,15 +310,17 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 					threshold = this.referenceTaxonomyThreshold;
 				}
 				
+				System.out.println("3.2.2.3 new Threshold -------> " + threshold);
+				
 				//System.out.println(query_org+"\t"+seqLength);
 				
 				if(seqLength>0) {
 
-					for(String genome: this.staticSubjectMap.keySet()) {
+					for(String gene: this.staticSubjectMap.keySet()) {
 						
 						if(!this.cancel.get()) {
 
-							genomeAAsequence = this.staticSubjectMap.get(genome);
+							genomeAAsequence = this.staticSubjectMap.get(gene);
 
 							if(this.method.equals(Method.SmithWaterman))
 								alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()),new ProteinSequence(genomeAAsequence.getSequenceAsString()), gp, sb);
@@ -399,23 +340,34 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 								score = similarityScore;
 
 							if(score > threshold) {
-
-								//no_similarity = false;
-
-								this.sequencesWithoutSimilarities.remove(query);
-
-								similarityData[0]= query;
-								similarityData[1]= this.staticSubjectMap.get(genome).getOriginalHeader();
-								similarityData[2]= alignmentScore+"";
-								similarityData[3]= matrix.toString();
-								similarityData[4]=alignmentMethod.getPair().getAlignedSequence(1).getCoverage()+"";
-								similarityData[5]=alignmentMethod.getPair().getAlignedSequence(2).getCoverage()+"";
 								
-								if(modules!=null) {
-									
-									PairwiseSequenceAlignement.loadOrthologsData(similarityData, conn, ec_number, closestOrthologs, modules, this.databaseAccess.get_database_type());
-									similarityData=null;
-								}
+								System.out.println("3.2.2.4 score -------> " + score);
+								System.out.println("3.2.2.5 Threshold -------> " + threshold);
+								
+								this.sequencesWithoutSimilarities.remove(query);
+								
+								AlignedSequence<ProteinSequence, AminoAcidCompound> a = alignmentMethod.getPair().getAlignedSequence(1);
+								AlignedSequence<ProteinSequence, AminoAcidCompound> b = alignmentMethod.getPair().getAlignedSequence(2);
+								
+								double c1 = a.getCoverage();
+								double c2 = b.getCoverage();
+								
+								System.out.println("3.2.2.6 :::::::::saving information in the capsule:::::::" );
+								System.out.println("ISTO ----> " + sequencesWithoutSimilarities);
+								System.out.println("3.2.2.7 query -------> " + query);
+								System.out.println("3.2.2.8 c1 -------> " + c1);
+								System.out.println("3.2.2.9 c2 -------> " + c2);
+								System.out.println("3.2.2.10 this.staticSubjectMap.get(genome).getOriginalHeader() -------> " + this.staticSubjectMap.get(gene).getOriginalHeader());
+								System.out.println("3.2.2.11 alignmentScore -------> " + alignmentScore);
+								System.out.println("3.2.2.12 ec_number -------> " + ec_number);
+								System.out.println("3.2.2.13 closestOrthologs -------> " + closestOrthologs);
+								System.out.println("3.2.2.14 modules -------> " + modules);
+								
+								AlignmentCapsule container = new AlignmentCapsule(query, c1, c2, this.staticSubjectMap.get(gene).getOriginalHeader(), 
+										alignmentScore, ec_number, closestOrthologs, modules);
+								similarityData.add(container);
+								
+								System.out.println("3.2.2.15 container added to similarity data");
 							}
 							alignmentMethod=null;
 						}
@@ -423,20 +375,26 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 				}
 			}
 			else {
+				
+				System.out.println("3.2.3 removing query from sequencesWithoutSimilarities -----> " + query);
 
 				this.sequencesWithoutSimilarities.remove(query);
 
-				for(String locus : locusTags) {
-
-					similarityData[0]= query;
-					similarityData[1]= locus;
-					similarityData[2]= null;
-					similarityData[3]= null;
-
-					if(modules!=null)
-						PairwiseSequenceAlignement.loadOrthologsData(similarityData, conn, ec_number, closestOrthologs, modules, this.databaseAccess.get_database_type());
-				}
+//				for(String sequenceId : sequenceIds) {
+//					
+//					AlignmentCapsule container = new AlignmentCapsule(query, -1.0, -1.0, sequenceId, -1.0);
+//					similarityData.add(container);
+//
+////					similarityData[0]= query;
+////					similarityData[1]= locus;
+////					similarityData[2]= null;
+////					similarityData[3]= null;
+//
+//					if(modules!=null)
+//						HomologyAPI.loadOrthologsData(container, ec_number, closestOrthologs, modules);
+//				}
 			}
+			System.out.println("3.2.4 returning this similarity data -----> " + similarityData);
 			return similarityData;
 		}
 		catch (Exception e) {
@@ -550,7 +508,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 						if(go) {
 
-							AlignmentContainer alignmentContainer = new AlignmentContainer(query, this.staticSubjectMap.get(genome).getOriginalHeader(), ko, 
+							AlignmentCapsule alignmentContainer = new AlignmentCapsule(query, this.staticSubjectMap.get(genome).getOriginalHeader(), ko, 
 									score, result.getMaxScore(), result.getMinScore(), result.getScore(), 
 									result.getPair().getNumIdenticals(), result.getPair().getNumSimilars(), 
 									result.getPair().getLength(), querySequence.getLength(), genomeAAsequence.getLength(),
@@ -592,73 +550,6 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	//		stmt=null;
 	//
 	//	}
-
-	/**
-	 * @param data
-	 * @param conn
-	 * @param ec_number
-	 * @param closestOrthologs
-	 * @param modules
-	 * @param databaseType
-	 * @throws SQLException
-	 */
-	public static void loadOrthologsData(String[] data, Connection conn, String ec_number, 
-			Map<String, Set<String>> closestOrthologs, Map<String, Set<String>> modules, DatabaseType databaseType) throws SQLException {
-
-		
-		//FIXME
-		System.out.println();
-		System.out.println(data[1]);
-		System.out.println(data[2]);
-		System.out.println(data[3]);
-		System.out.println(closestOrthologs.get(data[0]));
-		//System.out.println(this.modules.get(data[0]));
-
-		Statement statement = conn.createStatement();
-
-		synchronized (conn) {
-
-			Pair<String, String> geneNames = HomologyAPI.getGeneLocusFromHomologyData(data[1], statement);
-			String idGene = ModelAPI.loadGene(geneNames, data[1], null, statement, "KO",databaseType);
-
-
-			//			if(data[1]!=null) {
-			//
-			//				rs = stmt.executeQuery("SELECT idgene FROM gene WHERE sequence_id ='"+data[1]+"'");
-			//
-			//				if(!rs.next()) {
-			//
-			//					//					rs = stmt.executeQuery("SELECT idchromosome FROM chromosome WHERE name ='unknown'");
-			//					//
-			//					//					if(!rs.next()) {
-			//					//
-			//					//						stmt.execute("INSERT INTO chromosome (name) VALUES ('unknown')");
-			//					//						rs = stmt.executeQuery("SELECT LAST_INSERT_ID();");
-			//					//						rs.next();
-			//					//					}
-			//					//					String idchromosome = rs.getString(1);
-			//
-			//					stmt.execute("INSERT INTO gene (locusTag,"
-			//							//							+ " chromosome_idchromosome,"
-			//							+ " sequence_id, "
-			//							+ " origin) VALUES ('"+data[1]+"',"
-			//							//									+ " "+idchromosome+","
-			//							+ "'"+data[1]+"',"
-			//							+ "'KO')");
-			//					rs = stmt.executeQuery("SELECT LAST_INSERT_ID();");
-			//					rs.next();
-			//				}
-			//				idGene = rs.getString(1);
-			//			}
-
-			if(idGene != null) 
-				HomologyAPI.loadOrthologsInfo(idGene, statement, closestOrthologs, data, ec_number, modules);
-				
-		} 
-		statement.close();
-		
-	}
-
 
 	/**
 	 * @return the counter
@@ -741,12 +632,6 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 		this.referenceTaxonomyThreshold = referenceTaxonomyThreshold;
 	}
 
-	public void setAlignmentContainerSet(ConcurrentLinkedQueue<AlignmentContainer> alignmentContainerSet) {
-
-		this.alignmentContainerSet = alignmentContainerSet;
-	}
-
-
 	/**
 	 * @param ko
 	 */
@@ -769,12 +654,40 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 		this.minAlignedResidues = minAlignedResidues;
 	}
 
-	public ConcurrentHashMap<String, String[]> getAlignmentResults() {
-		return alignmentResults;
+	/**
+	 * @return the querySpecificThreshold
+	 */
+	public Map<String, Double> getQuerySpecificThreshold() {
+		return querySpecificThreshold;
 	}
 
-	public void setAlignmentResults(ConcurrentHashMap<String, String[]> alignmentResults) {
-		this.alignmentResults = alignmentResults;
+	/**
+	 * @param querySpecificThreshold the querySpecificThreshold to set
+	 */
+	public void setQuerySpecificThreshold(Map<String, Double> querySpecificThreshold) {
+		this.querySpecificThreshold = querySpecificThreshold;
 	}
+
+	/**
+	 * @return the sequenceIdsSet
+	 */
+	public Map<String, List<String>> getSequenceIdsSet() {
+		return sequenceIdsSet;
+	}
+
+	/**
+	 * @param sequenceIdsSet the sequenceIdsSet to set
+	 */
+	public void setSequenceIdsSet(Map<String, List<String>> sequenceIdsSet) {
+		this.sequenceIdsSet = sequenceIdsSet;
+	}
+
+//	public ConcurrentHashMap<String, List<AlignmentContainer>> getAlignmentResults() {
+//		return alignmentResults;
+//	}
+//
+//	public void setAlignmentResults(ConcurrentHashMap<String, List<AlignmentContainer>> alignmentResults) {
+//		this.alignmentResults = alignmentResults;
+//	}
 
 }
