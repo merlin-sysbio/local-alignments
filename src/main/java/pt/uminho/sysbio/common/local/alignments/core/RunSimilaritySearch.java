@@ -218,7 +218,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			this.querySize.set(new Integer(all_sequences.size()));
 			setChanged();
 			notifyObservers();
-
+			
 			Map<String, AbstractSequence<?>> ecNumberAnnotations = new HashMap<>();
 			ecNumberAnnotations.putAll(this.staticGenesSet);
 
