@@ -28,13 +28,10 @@ import org.biojava.nbio.core.alignment.template.AlignedSequence;
 import org.biojava.nbio.core.alignment.template.SubstitutionMatrix;
 import org.biojava.nbio.core.exceptions.CompoundNotFoundException;
 import org.biojava.nbio.core.sequence.ProteinSequence;
-import org.biojava.nbio.core.sequence.SequenceOptimizationHints.SequenceUsage;
 import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
 import org.biojava.nbio.core.sequence.compound.AminoAcidCompoundSet;
 import org.biojava.nbio.core.sequence.template.AbstractSequence;
 import org.biojava.nbio.core.sequence.template.CompoundSet;
-
-import com.sun.tools.xjc.model.SymbolSpace;
 
 import pt.uminho.sysbio.merIin.utilities.capsules.AlignmentCapsule;
 import pt.uminho.sysbio.merlin.utilities.Enumerators.AlignmentPurpose;
