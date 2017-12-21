@@ -31,7 +31,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	private AtomicInteger querySize;
 	private double similarity_threshold;
 	private Method method;
-	private Map<String, AbstractSequence<?>> querySequences;
+	private ConcurrentHashMap<String, AbstractSequence<?>> querySequences;
 	private List<String> annotatedGenes;
 	private ConcurrentLinkedQueue<String> sequencesWithoutSimilarities;
 	private String ec_number;
@@ -80,43 +80,45 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 * Run the transport similarity searches.
 	 * 
 	 * @param allSequences
-	 * @param querySpecificThreshold
 	 * @throws Exception
 	 */
-	public ConcurrentLinkedQueue<AlignmentCapsule> runTransportSearch(ConcurrentHashMap<String, AbstractSequence<?>> allSequences, Map <String, Double> querySpecificThreshold) throws Exception {
+	public ConcurrentLinkedQueue<AlignmentCapsule> runTransportSearch(Map <String, Double> querySpecificThreshold) throws Exception {
+		
+		List<Thread> threads = new ArrayList<Thread>();
+		ConcurrentLinkedQueue<String> queryArray = new ConcurrentLinkedQueue<String>(this.querySequences.keySet());
+		int numberOfCores = Runtime.getRuntime().availableProcessors();
+		//int numberOfCores = new Double(Runtime.getRuntime().availableProcessors()*1.5).intValue();
 
-			List<Thread> threads = new ArrayList<Thread>();
-			ConcurrentLinkedQueue<String> queryArray = new ConcurrentLinkedQueue<String>(allSequences.keySet());
-			int numberOfCores = Runtime.getRuntime().availableProcessors();
-			//int numberOfCores = new Double(Runtime.getRuntime().availableProcessors()*1.5).intValue();
+		if(this.querySequences.keySet().size()<numberOfCores)
+			numberOfCores=this.querySequences.keySet().size();
 
-			if(allSequences.keySet().size()<numberOfCores)
-				numberOfCores=allSequences.keySet().size();
+		System.out.println("number Of threads: "+numberOfCores);
 
-			System.out.println("number Of threads: "+numberOfCores);
+		this.querySize.set(new Integer(this.querySequences.size()));
+		setChanged();
+		notifyObservers();
 
-			this.querySize.set(new Integer(allSequences.size()));
-			setChanged();
-			notifyObservers();
-
-			ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet = new ConcurrentLinkedQueue<>();
+		ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet = new ConcurrentLinkedQueue<>();
+		
+		for(int i=0; i<numberOfCores; i++) {
 			
-			for(int i=0; i<numberOfCores; i++) {
+			System.out.println("running..." + i);
 
-				Runnable lc	= new PairwiseSequenceAlignement(this.method, allSequences, this.staticGenesSet, queryArray, this.similarity_threshold,
-					this.counter, this.cancel, AlignmentPurpose.TRANSPORT, this.alignmentScoreType, alignmentContainerSet);
-
-				((PairwiseSequenceAlignement) lc).addObserver(this); 
-				Thread thread = new Thread(lc);
-				threads.add(thread);
-				System.out.println("Start "+i);
-				thread.start();
-			}
-
-			for(Thread thread :threads)
-				thread.join();
+			Runnable lc	= new PairwiseSequenceAlignement(this.method, this.querySequences, this.staticGenesSet, queryArray, this.similarity_threshold,
+				this.counter, this.cancel, AlignmentPurpose.TRANSPORT, this.alignmentScoreType, alignmentContainerSet);
 			
-			return alignmentContainerSet;
+			((PairwiseSequenceAlignement) lc).setQuerySpecificThreshold(querySpecificThreshold);
+			((PairwiseSequenceAlignement) lc).addObserver(this); 
+			Thread thread = new Thread(lc);
+			threads.add(thread);
+			System.out.println("Start "+i);
+			thread.start();
+		}
+
+		for(Thread thread :threads)
+			thread.join();
+		
+		return alignmentContainerSet;
 	}
 
 

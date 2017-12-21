@@ -69,7 +69,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	private double minAlignedResidues;
 	private Map <String, Double> querySpecificThreshold;
 	private Map<String, List<String>> sequenceIdsSet;
-
+	
 	/**
 	 * Perform multiple sequence alignments.
 	 * 
