@@ -14,10 +14,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.biojava.nbio.core.sequence.template.AbstractSequence;
 
-import pt.uminho.sysbio.merIin.utilities.capsules.AlignmentCapsule;
 import pt.uminho.sysbio.merlin.utilities.Enumerators.AlignmentPurpose;
 import pt.uminho.sysbio.merlin.utilities.Enumerators.AlignmentScoreType;
 import pt.uminho.sysbio.merlin.utilities.Enumerators.Method;
+import pt.uminho.sysbio.merlin.utilities.containers.capsules.AlignmentCapsule;
 
 /**
  * @author ODias

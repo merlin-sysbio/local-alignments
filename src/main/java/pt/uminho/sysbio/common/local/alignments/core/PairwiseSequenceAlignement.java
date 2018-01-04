@@ -33,11 +33,11 @@ import org.biojava.nbio.core.sequence.compound.AminoAcidCompoundSet;
 import org.biojava.nbio.core.sequence.template.AbstractSequence;
 import org.biojava.nbio.core.sequence.template.CompoundSet;
 
-import pt.uminho.sysbio.merIin.utilities.capsules.AlignmentCapsule;
 import pt.uminho.sysbio.merlin.utilities.Enumerators.AlignmentPurpose;
 import pt.uminho.sysbio.merlin.utilities.Enumerators.AlignmentScoreType;
 import pt.uminho.sysbio.merlin.utilities.Enumerators.Matrix;
 import pt.uminho.sysbio.merlin.utilities.Enumerators.Method;
+import pt.uminho.sysbio.merlin.utilities.containers.capsules.AlignmentCapsule;
 
 
 /**
