@@ -112,24 +112,15 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 			String query = this.queryArray.poll();
 			try {
 
-				if(this.alignmentPurpose.equals(AlignmentPurpose.TRANSPORT)) {
-
+				if(this.alignmentPurpose.equals(AlignmentPurpose.TRANSPORT)) 
 					this.alignmentContainerSet.addAll(new ArrayList<>(this.getSimilarityTransport(query)));
-				}
-				else if(this.alignmentPurpose.equals(AlignmentPurpose.ORTHOLOGS)) {
-					
-					System.out.println("3.2 getSimilarityOrthologs for -----> " + query);
-
+				
+				else if(this.alignmentPurpose.equals(AlignmentPurpose.ORTHOLOGS))
 					this.alignmentContainerSet.addAll(new ArrayList<>(this.getSimilarityOrthologs(query)));
-					
-					System.out.println("3.3 complete for -----> " + query);
-					
-					
-				}
-				else if(this.alignmentPurpose.equals(AlignmentPurpose.OTHER)) {
-
+				
+				else if(this.alignmentPurpose.equals(AlignmentPurpose.OTHER)) 
 					this.getSimilarityOther(query);
-				}
+				
 			}
 			catch (Exception e) {
 
@@ -153,7 +144,6 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 		setChanged();
 		notifyObservers();
-		System.out.println("3.4 alignmentcontainerSet -------> " + alignmentContainerSet);
 	}
 
 
@@ -261,10 +251,6 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 		try {
 			
-			System.out.println("3.2.1 query --->" + query);
-
-//			String[] similarityData = new String[6];
-			
 			List<AlignmentCapsule> similarityData = new ArrayList<>();
 			
 			String [] query_array = query.split(":"); 
@@ -272,15 +258,11 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 			String query_org = query_array [0].trim();
 			String queryLocus = query_array[1].trim();
 			
-			System.out.println("3.2.2 sequenceIDsSet -------> " + sequenceIdsSet);
-
 			if(!sequenceIdsSet.containsKey(queryLocus) || sequenceIdsSet.get(queryLocus).isEmpty()) {
 				
 				AbstractSequence<?> querySequence= this.concurrentQueryMap.get(query);
 				
 				int seqLength = querySequence.getLength();
-				
-				System.out.println("3.2.2.1 querySequence size -------> " + seqLength);
 				
 				Matrix matrix;
 				short gapOpenPenalty=10, gapExtensionPenalty=1;
@@ -299,17 +281,8 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 				double threshold = this.threshold;
 				
-				System.out.println("3.2.2.2 threshold -------> " + threshold);
-
-				if(this.kegg_taxonomy_scores.get(query_org)>=this.referenceTaxonomyScore) {
-
-					System.out.println("Using reference taxonomy:\t"+this.referenceTaxonomyScore+"\tthreshold\t"+this.referenceTaxonomyThreshold);
+				if(this.kegg_taxonomy_scores.get(query_org)>=this.referenceTaxonomyScore) 
 					threshold = this.referenceTaxonomyThreshold;
-				}
-				
-				System.out.println("3.2.2.3 new Threshold -------> " + threshold);
-				
-				//System.out.println(query_org+"\t"+seqLength);
 				
 				if(seqLength>0) {
 
@@ -338,9 +311,6 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 							if(score > threshold) {
 								
-								System.out.println("3.2.2.4 score -------> " + score);
-								System.out.println("3.2.2.5 Threshold -------> " + threshold);
-								
 								this.sequencesWithoutSimilarities.remove(query);
 								
 								AlignedSequence<ProteinSequence, AminoAcidCompound> a = alignmentMethod.getPair().getAlignedSequence(1);
@@ -349,57 +319,23 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 								double c1 = a.getCoverage();
 								double c2 = b.getCoverage();
 								
-								System.out.println("3.2.2.6 :::::::::saving information in the capsule:::::::" );
-								System.out.println("ISTO ----> " + sequencesWithoutSimilarities);
-								System.out.println("3.2.2.7 query -------> " + query);
-								System.out.println("3.2.2.8 c1 -------> " + c1);
-								System.out.println("3.2.2.9 c2 -------> " + c2);
-								System.out.println("3.2.2.10 this.staticSubjectMap.get(genome).getOriginalHeader() -------> " + this.staticSubjectMap.get(gene).getOriginalHeader());
-								System.out.println("3.2.2.11 alignmentScore -------> " + alignmentScore);
-								System.out.println("3.2.2.12 ec_number -------> " + ec_number);
-								System.out.println("3.2.2.13 closestOrthologs -------> " + closestOrthologs);
-								System.out.println("3.2.2.14 modules -------> " + modules);
-								
 								AlignmentCapsule container = new AlignmentCapsule(query, c1, c2, this.staticSubjectMap.get(gene).getOriginalHeader(), 
 										alignmentScore, ec_number, closestOrthologs, modules);
 								similarityData.add(container);
-								
-								System.out.println("3.2.2.15 container added to similarity data");
 							}
 							alignmentMethod=null;
 						}
 					}
 				}
 			}
-			else {
-				
-				System.out.println("3.2.3 removing query from sequencesWithoutSimilarities -----> " + query);
-
+			else 
 				this.sequencesWithoutSimilarities.remove(query);
-
-//				for(String sequenceId : sequenceIds) {
-//					
-//					AlignmentCapsule container = new AlignmentCapsule(query, -1.0, -1.0, sequenceId, -1.0);
-//					similarityData.add(container);
-//
-////					similarityData[0]= query;
-////					similarityData[1]= locus;
-////					similarityData[2]= null;
-////					similarityData[3]= null;
-//
-//					if(modules!=null)
-//						HomologyAPI.loadOrthologsData(container, ec_number, closestOrthologs, modules);
-//				}
-			}
-			System.out.println("3.2.4 returning this similarity data -----> " + similarityData);
+			
 			return similarityData;
 		}
 		catch (Exception e) {
 
 			e.printStackTrace();
-			System.err.println(query);
-			System.err.println();
-			System.out.println();
 		}
 		return null;
 	}
@@ -440,7 +376,6 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 			if(this.kegg_taxonomy_scores.containsKey(query_org) && 
 					this.kegg_taxonomy_scores.get(query_org)>=this.referenceTaxonomyScore) {
 
-				System.out.println("Using reference taxonomy:\t"+this.referenceTaxonomyScore+"\tthreshold\t"+this.referenceTaxonomyThreshold);
 				workingThreshold = this.referenceTaxonomyThreshold;
 			}
 
@@ -519,7 +454,6 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 						System.err.println("query "+query);
 						System.err.println("query "+querySequence);
-						System.out.println("genome "+genomeAAsequence);
 						ee.printStackTrace();
 					}
 				}
@@ -530,7 +464,6 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 			e.printStackTrace();
 			System.err.println(query);
 			System.err.println();
-			System.out.println();
 		}
 	}
 

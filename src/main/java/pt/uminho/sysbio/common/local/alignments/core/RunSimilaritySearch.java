@@ -92,8 +92,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		if(this.querySequences.keySet().size()<numberOfCores)
 			numberOfCores=this.querySequences.keySet().size();
 
-		System.out.println("number Of threads: "+numberOfCores);
-
 		this.querySize.set(new Integer(this.querySequences.size()));
 		setChanged();
 		notifyObservers();
@@ -102,8 +100,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		
 		for(int i=0; i<numberOfCores; i++) {
 			
-			System.out.println("running..." + i);
-
 			Runnable lc	= new PairwiseSequenceAlignement(this.method, this.querySequences, this.staticGenesSet, queryArray, this.similarity_threshold,
 				this.counter, this.cancel, AlignmentPurpose.TRANSPORT, this.alignmentScoreType, alignmentContainerSet);
 			
@@ -111,7 +107,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			((PairwiseSequenceAlignement) lc).addObserver(this); 
 			Thread thread = new Thread(lc);
 			threads.add(thread);
-			System.out.println("Start "+i);
 			thread.start();
 		}
 
@@ -169,8 +164,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			if(queryArray.size()<numberOfCores)
 				numberOfCores=queryArray.size();
 
-			System.out.println("number Of threads: "+numberOfCores);
-			
 			for(int i=0; i<numberOfCores; i++) {
 
 				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ecNumberAnnotations, queryArray,
@@ -189,7 +182,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				((PairwiseSequenceAlignement) lc).addObserver(this); 
 				Thread thread = new Thread(lc);
 				threads.add(thread);
-				System.out.println("Start "+i);
 				thread.start();
 			}
 
@@ -206,8 +198,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		
 		ConcurrentHashMap<String, AbstractSequence<?>> all_sequences = new ConcurrentHashMap<>(querySequences);
 		
-		System.out.println("3.1 all_sequences map size ---->" + all_sequences.size());
-
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		if(all_sequences.keySet().size()>0) {
@@ -246,8 +236,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			if(queryArray.size()<numberOfCores)
 				numberOfCores=queryArray.size();
 
-			System.out.println("number Of threads: "+numberOfCores);
-
 			for(int i=0; i<numberOfCores; i++) {
 
 				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ecNumberAnnotations, queryArray,
@@ -265,7 +253,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				((PairwiseSequenceAlignement) lc).addObserver(this); 
 				Thread thread = new Thread(lc);
 				threads.add(thread);
-				System.out.println("Start "+i);
 				thread.start();
 			}
 
@@ -276,7 +263,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				this.run_OrthologsSearch(sequenceIdsSet, alignmentContainerSet);
 
 		}
-		System.out.println("3.1 all_sequences map size ---->" + all_sequences.size());
 		return alignmentContainerSet;
 	}
 
