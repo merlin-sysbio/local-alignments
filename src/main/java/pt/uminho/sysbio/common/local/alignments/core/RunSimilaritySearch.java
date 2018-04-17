@@ -243,6 +243,9 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				
 				((PairwiseSequenceAlignement) lc).setSequencesWithoutSimilarities(this.sequencesWithoutSimilarities);
 				((PairwiseSequenceAlignement) lc).setEc_number(this.ec_number);
+				
+				System.out.println(this.modules);
+				
 				((PairwiseSequenceAlignement) lc).setModules(this.modules);
 				((PairwiseSequenceAlignement) lc).setClosestOrthologs(this.closestOrthologs);
 				((PairwiseSequenceAlignement) lc).setReferenceTaxonomyScore(this.referenceTaxonomyScore);

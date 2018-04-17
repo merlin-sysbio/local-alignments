@@ -251,6 +251,8 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 		try {
 			
+			System.out.println("getSimilarityOrthologs QUERY------>"+query);
+			
 			List<AlignmentCapsule> similarityData = new ArrayList<>();
 			
 			String [] query_array = query.split(":"); 
@@ -308,7 +310,8 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 								score = identityScore;
 							else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY))
 								score = similarityScore;
-
+							
+							
 							if(score > threshold) {
 								
 								this.sequencesWithoutSimilarities.remove(query);
@@ -318,6 +321,10 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 								
 								double c1 = a.getCoverage();
 								double c2 = b.getCoverage();
+								
+								System.out.println("GET SIMILARITY ORTHOLOGS alignmentScore------>"+alignmentScore);
+								System.out.println("GET SIMILARITY ORTHOLOGS ec_number------>"+ec_number);
+								System.out.println("GET SIMILARITY ORTHOLOGS modules------>"+modules);
 								
 								AlignmentCapsule container = new AlignmentCapsule(query, c1, c2, this.staticSubjectMap.get(gene).getOriginalHeader(), 
 										alignmentScore, ec_number, closestOrthologs, modules);
