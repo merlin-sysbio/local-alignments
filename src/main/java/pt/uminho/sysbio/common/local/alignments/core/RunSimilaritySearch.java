@@ -35,7 +35,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	private List<String> annotatedGenes;
 	private ConcurrentLinkedQueue<String> sequencesWithoutSimilarities;
 	private String ec_number;
-	private Map<String, Set<String>> modules;
+	private Map<String, Set<Integer>> modules;
 	private Map<String, Set<String>> closestOrthologs;
 	private int referenceTaxonomyScore;
 	private Map<String, Integer> kegg_taxonomy_scores;
@@ -361,14 +361,14 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	/**
 	 * @return the idModule
 	 */
-	public Map<String, Set<String>> getModules() {
+	public Map<String, Set<Integer>> getModules() {
 		return modules;
 	}
 
 	/**
 	 * @param genes_ko_modules the idModule to set
 	 */
-	public void setModules(Map<String, Set<String>> modules) {
+	public void setModules(Map<String, Set<Integer>> modules) {
 		this.modules = modules;
 	}
 

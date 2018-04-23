@@ -57,7 +57,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	private AtomicBoolean cancel;
 	private AlignmentPurpose alignmentPurpose;
 	private ConcurrentLinkedQueue<String> sequencesWithoutSimilarities;
-	private Map<String, Set<String>> modules;
+	private Map<String, Set<Integer>> modules;
 	private String ec_number;
 	private Map<String, Set<String>> closestOrthologs;
 	private Map<String, Integer> kegg_taxonomy_scores;
@@ -251,8 +251,6 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 		try {
 			
-			System.out.println("getSimilarityOrthologs QUERY------>"+query);
-			
 			List<AlignmentCapsule> similarityData = new ArrayList<>();
 			
 			String [] query_array = query.split(":"); 
@@ -321,10 +319,6 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 								
 								double c1 = a.getCoverage();
 								double c2 = b.getCoverage();
-								
-								System.out.println("GET SIMILARITY ORTHOLOGS alignmentScore------>"+alignmentScore);
-								System.out.println("GET SIMILARITY ORTHOLOGS ec_number------>"+ec_number);
-								System.out.println("GET SIMILARITY ORTHOLOGS modules------>"+modules);
 								
 								AlignmentCapsule container = new AlignmentCapsule(query, c1, c2, this.staticSubjectMap.get(gene).getOriginalHeader(), 
 										alignmentScore, ec_number, closestOrthologs, modules);
@@ -521,14 +515,14 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	/**
 	 * @return the idModule
 	 */
-	public Map<String, Set<String>> getModules() {
+	public Map<String, Set<Integer>> getModules() {
 		return modules;
 	}
 
 	/**
 	 * @param idModule the idModule to set
 	 */
-	public void setModules(Map<String, Set<String>> modules) {
+	public void setModules(Map<String, Set<Integer>> modules) {
 		this.modules = modules;
 	}
 
