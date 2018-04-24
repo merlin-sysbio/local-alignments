@@ -60,10 +60,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 * @param alignmentScoreType
 	 * @throws Exception
 	 */
-	public RunSimilaritySearch(Map<String, AbstractSequence<?>> staticGenesSet, double similarity_threshold,  
-			Method method, ConcurrentHashMap<String, AbstractSequence<?>> querySequences, 
-			AtomicBoolean cancel, AtomicInteger querySize, AtomicInteger counter, 
-			AlignmentScoreType alignmentScoreType) throws Exception {
+	public RunSimilaritySearch(Map<String, AbstractSequence<?>> staticGenesSet, double similarity_threshold, Method method, ConcurrentHashMap<String, AbstractSequence<?>> querySequences, 
+			AtomicBoolean cancel, AtomicInteger querySize, AtomicInteger counter, AlignmentScoreType alignmentScoreType) throws Exception {
 
 		this.setCounter(counter);
 		this.setQuerySize(querySize);
@@ -243,8 +241,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				
 				((PairwiseSequenceAlignement) lc).setSequencesWithoutSimilarities(this.sequencesWithoutSimilarities);
 				((PairwiseSequenceAlignement) lc).setEc_number(this.ec_number);
-				
-				System.out.println(this.modules);
 				
 				((PairwiseSequenceAlignement) lc).setModules(this.modules);
 				((PairwiseSequenceAlignement) lc).setClosestOrthologs(this.closestOrthologs);
