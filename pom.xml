@@ -2,9 +2,9 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>pt.uminho.sysbio.common</groupId>
+	<groupId>pt.uminho.ceb.biosystems.merlin</groupId>
 	<artifactId>local-alignments</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.2-SNAPSHOT</version>
 	<!-- <packaging>jar</packaging> -->
 
 	<name>local-alignments</name>
@@ -14,7 +14,8 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
-		<pt.uminho.sysbio.version>0.0.1-SNAPSHOT</pt.uminho.sysbio.version>
+		<pt.uminho.ceb.biosystems.merlin.version>0.0.2-SNAPSHOT</pt.uminho.ceb.biosystems.merlin.version>
+		<pt.uminho.ceb.biosystems.merlin.groupId>pt.uminho.ceb.biosystems.merlin</pt.uminho.ceb.biosystems.merlin.groupId>
 	</properties>
 	<repositories>
  	    <repository>
@@ -67,14 +68,14 @@
 	</build>
 	<dependencies>
 		<dependency>
-			<groupId>pt.uminho.sysbio.common</groupId>
+			<groupId>${pt.uminho.ceb.biosystems.merlin.groupId}</groupId>
 			<artifactId>bioapis</artifactId>
-			<version>${pt.uminho.sysbio.version}</version>
+			<version>${pt.uminho.ceb.biosystems.merlin.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>pt.uminho.sysbio.merlin</groupId>
+		<groupId>${pt.uminho.ceb.biosystems.merlin.groupId}</groupId>
 			<artifactId>merlin-utilities</artifactId>
-			<version>${pt.uminho.sysbio.version}</version>
+			<version>${pt.uminho.ceb.biosystems.merlin.version}</version>
 		</dependency>
 	</dependencies>
 	

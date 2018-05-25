@@ -1,4 +1,4 @@
-package pt.uminho.sysbio.common.local.alignments.core;
+package pt.uminho.ceb.biosystems.merlin.local.alignments.core;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,10 +14,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.biojava.nbio.core.sequence.template.AbstractSequence;
 
-import pt.uminho.sysbio.merlin.utilities.Enumerators.AlignmentPurpose;
-import pt.uminho.sysbio.merlin.utilities.Enumerators.AlignmentScoreType;
-import pt.uminho.sysbio.merlin.utilities.Enumerators.Method;
-import pt.uminho.sysbio.merlin.utilities.containers.capsules.AlignmentCapsule;
+import pt.uminho.ceb.biosystems.merlin.utilities.Enumerators.AlignmentPurpose;
+import pt.uminho.ceb.biosystems.merlin.utilities.Enumerators.AlignmentScoreType;
+import pt.uminho.ceb.biosystems.merlin.utilities.Enumerators.Method;
+import pt.uminho.ceb.biosystems.merlin.utilities.containers.capsules.AlignmentCapsule;
 
 /**
  * @author ODias
