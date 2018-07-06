@@ -4,7 +4,7 @@
 
 	<groupId>pt.uminho.ceb.biosystems.merlin</groupId>
 	<artifactId>local-alignments</artifactId>
-	<version>0.0.2-SNAPSHOT</version>
+	<version>0.0.3-SNAPSHOT</version>
 	<!-- <packaging>jar</packaging> -->
 
 	<name>local-alignments</name>
@@ -70,12 +70,12 @@
 		<dependency>
 			<groupId>${pt.uminho.ceb.biosystems.merlin.groupId}</groupId>
 			<artifactId>bioapis</artifactId>
-			<version>${pt.uminho.ceb.biosystems.merlin.version}</version>
+			<version>0.0.3-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 		<groupId>${pt.uminho.ceb.biosystems.merlin.groupId}</groupId>
 			<artifactId>merlin-utilities</artifactId>
-			<version>${pt.uminho.ceb.biosystems.merlin.version}</version>
+			<version>0.0.3-SNAPSHOT</version>
 		</dependency>
 	</dependencies>
 	
