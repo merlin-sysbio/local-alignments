@@ -1,5 +1,6 @@
 package pt.uminho.ceb.biosystems.merlin.local.alignments.core;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,12 +13,22 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.xml.bind.JAXBContext;
+
+import org.apache.axis2.dataretrieval.BaseAxisDataLocator;
+import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
 import org.biojava.nbio.core.sequence.template.AbstractSequence;
 
+import pt.uminho.ceb.biosystems.merlin.bioapis.externalAPI.ncbi.CreateGenomeFile;
+import pt.uminho.ceb.biosystems.merlin.bioapis.externalAPI.utilities.Enumerators.FileExtensions;
+import pt.uminho.ceb.biosystems.merlin.local.alignments.core.ModelMerge.BlastAlignment;
+import pt.uminho.ceb.biosystems.merlin.local.alignments.core.ModelMerge.ModelAlignments;
 import pt.uminho.ceb.biosystems.merlin.utilities.Enumerators.AlignmentPurpose;
 import pt.uminho.ceb.biosystems.merlin.utilities.Enumerators.AlignmentScoreType;
 import pt.uminho.ceb.biosystems.merlin.utilities.Enumerators.Method;
+import pt.uminho.ceb.biosystems.merlin.utilities.blast.ncbi_blastparser.BlastOutput;
 import pt.uminho.ceb.biosystems.merlin.utilities.containers.capsules.AlignmentCapsule;
+import pt.uminho.ceb.biosystems.merlin.utilities.io.FileUtils;
 
 /**
  * @author ODias
@@ -42,6 +53,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	private double referenceTaxonomyThreshold;
 	private boolean compareToFullGenome;
 	private AlignmentScoreType alignmentScoreType;
+	private String tcdbFastaFilePath;
 
 
 	/**
@@ -74,6 +86,98 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		this.alignmentScoreType = alignmentScoreType;
 	}
 
+	
+	
+///////////////////////////////////
+	/**
+	 * Run the transport similarity searches.
+	 * 
+	 * @param allSequences
+	 * @throws Exception
+	 */
+	public ConcurrentLinkedQueue<AlignmentCapsule> runBlastSearch(Map <String, Double> querySpecificThreshold, boolean isTransportersSearch) throws Exception {
+		
+		System.out.println("runBlastSearch....");
+		
+		List<Thread> threads = new ArrayList<Thread>();
+//		ConcurrentLinkedQueue<String> queryArray = new ConcurrentLinkedQueue<String>(this.querySequences.keySet());
+		int numberOfCores = Runtime.getRuntime().availableProcessors();
+		//int numberOfCores = new Double(Runtime.getRuntime().availableProcessors()*1.5).intValue();
+
+		if(this.querySequences.keySet().size()<numberOfCores)
+			numberOfCores=this.querySequences.keySet().size();
+
+		this.querySize.set(new Integer(this.querySequences.size()));
+		setChanged();
+		notifyObservers();
+		
+		System.out.println("Writting query sequences fasta files... ");
+		
+		//Distribute querySequences into fastaFiles
+		int batch_size= this.querySequences.size()/numberOfCores;
+		
+		Map<String, AbstractSequence<?>> queriesSubSet = new HashMap<>();
+		List<String> queryFilesPaths = new ArrayList<>();
+		List<Map<String,AbstractSequence<?>>> queriesSubSetList = new ArrayList<>();
+		
+		String path = FileUtils.getCurrentTempDirectory().concat("queryBlastSubFasta_");
+		String fastaFileName;
+		
+		int c=0;
+		for (String query : this.querySequences.keySet()) {
+			
+			queriesSubSet.put(query, this.querySequences.get(query));
+
+			if ((c+1)%batch_size==0 && ((c+1)/batch_size < numberOfCores)) {
+				
+				fastaFileName = path.concat(Integer.toString((c+1)/batch_size)).concat("_of_").
+						concat(Integer.toString(numberOfCores)).concat(FileExtensions.PROTEIN_FAA.getExtension());
+				
+				CreateGenomeFile.buildFastaFile(fastaFileName, queriesSubSet);
+				queryFilesPaths.add(fastaFileName);
+				queriesSubSetList.add(queriesSubSet);
+				
+				queriesSubSet = new HashMap<>();
+			}
+			c++;
+		}
+		
+		fastaFileName = path.concat(Integer.toString(numberOfCores)).concat("_of_").
+				concat(Integer.toString(numberOfCores)).concat(FileExtensions.PROTEIN_FAA.getExtension());
+		
+		CreateGenomeFile.buildFastaFile(fastaFileName, queriesSubSet);
+		queriesSubSetList.add(queriesSubSet);
+		queryFilesPaths.add(fastaFileName);
+		
+		ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet = new ConcurrentLinkedQueue<>();
+		
+		JAXBContext jc = JAXBContext.newInstance(BlastOutput.class);
+
+		
+		for(int i=0; i<numberOfCores; i++) {
+			
+			System.out.println("Add thread "+i+"...");
+
+			ModelAlignments blastAlign	= new BlastAlignment(queryFilesPaths.get(i), tcdbFastaFilePath, queriesSubSetList.get(i), 
+					this.similarity_threshold, isTransportersSearch, this.cancel, alignmentContainerSet, jc);
+
+			((BlastAlignment) blastAlign).addObserver(this); 
+
+			Thread thread = new Thread(blastAlign);
+			threads.add(thread);
+			thread.start();
+		}
+
+		for(Thread thread :threads)
+			thread.join();
+		
+		
+		return alignmentContainerSet;
+	}
+	///////////////////////////////
+	
+	
+	
 	/**
 	 * Run the transport similarity searches.
 	 * 
@@ -118,10 +222,10 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	/**
 	 * @throws Exception
 	 */
-	public ConcurrentLinkedQueue<AlignmentCapsule> run_OrthologGapsSearch(Map<String, List<String>> sequenceIdsSet, ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet) throws Exception {
+	public ConcurrentLinkedQueue<AlignmentCapsule> run_OrthologGapsSearch(Map<String, List<String>> sequenceIdsSet, ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet, boolean recursive) throws Exception {
 
-		boolean recursive = false;
-
+//		boolean recursive = false;
+		
 		ConcurrentHashMap<String, AbstractSequence<?>> all_sequences = new ConcurrentHashMap<>(querySequences);
 		
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -139,7 +243,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 
 			Map<String, AbstractSequence<?>> ecNumberAnnotations = new HashMap<>();
 			ecNumberAnnotations.putAll(this.staticGenesSet);
-
+			
 			if(this.sequencesWithoutSimilarities==null) {
 
 				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty())
@@ -190,78 +294,87 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		return alignmentContainerSet;
 	}
 	
+	/**
+	 * @param sequenceIdsSet
+	 * @param alignmentContainerSet
+	 * @return
+	 * @throws Exception
+	 */
 	public ConcurrentLinkedQueue<AlignmentCapsule> run_OrthologsSearch(Map<String, List<String>> sequenceIdsSet, ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet) throws Exception {
-
+		
 		boolean recursive = false;
 		
-		ConcurrentHashMap<String, AbstractSequence<?>> all_sequences = new ConcurrentHashMap<>(querySequences);
+//		ConcurrentHashMap<String, AbstractSequence<?>> all_sequences = new ConcurrentHashMap<>(querySequences);
+//		
+//		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//		if(all_sequences.keySet().size()>0) {
+//
+////			this.setAlreadyProcessed(false);
+//			/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//			List<Thread> threads = new ArrayList<Thread>();
+//			ConcurrentLinkedQueue<String> queryArray = new ConcurrentLinkedQueue<String>(querySequences.keySet());
+//
+//			this.querySize.set(new Integer(all_sequences.size()));
+//			setChanged();
+//			notifyObservers();
+//			
+//			Map<String, AbstractSequence<?>> ecNumberAnnotations = new HashMap<>();
+//			ecNumberAnnotations.putAll(this.staticGenesSet);
+//
+//			if(this.sequencesWithoutSimilarities==null) {
+//
+//				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty())
+//					ecNumberAnnotations.keySet().retainAll(this.annotatedGenes);
+//
+//				if(!recursive) {
+//
+//					this.sequencesWithoutSimilarities = new ConcurrentLinkedQueue<String>();
+//					this.sequencesWithoutSimilarities.addAll(queryArray);
+//				}
+//			}
+//			else  {
+//
+//				recursive = true;
+//				queryArray.retainAll(this.sequencesWithoutSimilarities);
+//			}
+//
+//			int numberOfCores = Runtime.getRuntime().availableProcessors();
+//
+//			if(queryArray.size()<numberOfCores)
+//				numberOfCores=queryArray.size();
+//
+//			for(int i=0; i<numberOfCores; i++) {
+//
+//				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ecNumberAnnotations, queryArray,
+//						similarity_threshold, this.counter, this.cancel, AlignmentPurpose.ORTHOLOGS, this.alignmentScoreType,
+//						alignmentContainerSet);
+//				
+//				((PairwiseSequenceAlignement) lc).setSequencesWithoutSimilarities(this.sequencesWithoutSimilarities);
+//				((PairwiseSequenceAlignement) lc).setEc_number(this.ec_number);
+//				
+//				((PairwiseSequenceAlignement) lc).setModules(this.modules);
+//				((PairwiseSequenceAlignement) lc).setClosestOrthologs(this.closestOrthologs);
+//				((PairwiseSequenceAlignement) lc).setReferenceTaxonomyScore(this.referenceTaxonomyScore);
+//				((PairwiseSequenceAlignement) lc).setKegg_taxonomy_scores(this.kegg_taxonomy_scores);
+//				((PairwiseSequenceAlignement) lc).setReferenceTaxonomyThreshold(this.referenceTaxonomyThreshold);
+//				((PairwiseSequenceAlignement) lc).setSequenceIdsSet(sequenceIdsSet);
+//
+//				((PairwiseSequenceAlignement) lc).addObserver(this);
+//				Thread thread = new Thread(lc);
+//				threads.add(thread);
+//				thread.start();
+//			}
+//
+//			for(Thread thread :threads)
+//				thread.join();
 		
-		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		if(all_sequences.keySet().size()>0) {
+		this.run_OrthologGapsSearch(sequenceIdsSet, alignmentContainerSet, recursive);
 
-//			this.setAlreadyProcessed(false);
-			/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-			List<Thread> threads = new ArrayList<Thread>();
-			ConcurrentLinkedQueue<String> queryArray = new ConcurrentLinkedQueue<String>(querySequences.keySet());
+		if(this.compareToFullGenome && !recursive && this.sequencesWithoutSimilarities!=null && !this.sequencesWithoutSimilarities.isEmpty())
+			this.run_OrthologsSearch(sequenceIdsSet, alignmentContainerSet);
 
-			this.querySize.set(new Integer(all_sequences.size()));
-			setChanged();
-			notifyObservers();
-			
-			Map<String, AbstractSequence<?>> ecNumberAnnotations = new HashMap<>();
-			ecNumberAnnotations.putAll(this.staticGenesSet);
-
-			if(this.sequencesWithoutSimilarities==null) {
-
-				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty())
-					ecNumberAnnotations.keySet().retainAll(this.annotatedGenes);
-
-				if(!recursive) {
-
-					this.sequencesWithoutSimilarities = new ConcurrentLinkedQueue<String>();
-					this.sequencesWithoutSimilarities.addAll(queryArray);
-				}
-			}
-			else  {
-
-				recursive = true;
-				queryArray.retainAll(this.sequencesWithoutSimilarities);
-			}
-
-			int numberOfCores = Runtime.getRuntime().availableProcessors();
-
-			if(queryArray.size()<numberOfCores)
-				numberOfCores=queryArray.size();
-
-			for(int i=0; i<numberOfCores; i++) {
-
-				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ecNumberAnnotations, queryArray,
-						similarity_threshold, this.counter, this.cancel, AlignmentPurpose.ORTHOLOGS, this.alignmentScoreType, alignmentContainerSet);
-				
-				((PairwiseSequenceAlignement) lc).setSequencesWithoutSimilarities(this.sequencesWithoutSimilarities);
-				((PairwiseSequenceAlignement) lc).setEc_number(this.ec_number);
-				
-				((PairwiseSequenceAlignement) lc).setModules(this.modules);
-				((PairwiseSequenceAlignement) lc).setClosestOrthologs(this.closestOrthologs);
-				((PairwiseSequenceAlignement) lc).setReferenceTaxonomyScore(this.referenceTaxonomyScore);
-				((PairwiseSequenceAlignement) lc).setKegg_taxonomy_scores(this.kegg_taxonomy_scores);
-				((PairwiseSequenceAlignement) lc).setReferenceTaxonomyThreshold(this.referenceTaxonomyThreshold);
-				((PairwiseSequenceAlignement) lc).setSequenceIdsSet(sequenceIdsSet);
-
-				((PairwiseSequenceAlignement) lc).addObserver(this); 
-				Thread thread = new Thread(lc);
-				threads.add(thread);
-				thread.start();
-			}
-
-			for(Thread thread :threads)
-				thread.join();
-
-			if(this.compareToFullGenome && !recursive && this.sequencesWithoutSimilarities!=null && !this.sequencesWithoutSimilarities.isEmpty())
-				this.run_OrthologsSearch(sequenceIdsSet, alignmentContainerSet);
-
-		}
+//		}
 		return alignmentContainerSet;
 	}
 
@@ -408,6 +521,24 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	public void setReferenceTaxonomyThreshold(double referenceTaxonomyThreshold) {
 		this.referenceTaxonomyThreshold = referenceTaxonomyThreshold;
 	}
+
+	/**
+	 * @return the tcdbFastaFilePath
+	 */
+	public String getTcdbFastaFilePath() {
+		return tcdbFastaFilePath;
+	}
+
+
+
+	/**
+	 * @param tcdbFastaFilePath the tcdbFastaFilePath to set
+	 */
+	public void setTcdbFastaFilePath(String tcdbFastaFilePath) {
+		this.tcdbFastaFilePath = tcdbFastaFilePath;
+	}
+
+
 
 	public boolean isCompareToFullGenome() {
 		return compareToFullGenome;

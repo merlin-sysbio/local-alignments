@@ -111,15 +111,19 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 			String query = this.queryArray.poll();
 			try {
-
-				if(this.alignmentPurpose.equals(AlignmentPurpose.TRANSPORT)) 
-					this.alignmentContainerSet.addAll(new ArrayList<>(this.getSimilarityTransport(query)));
 				
-				else if(this.alignmentPurpose.equals(AlignmentPurpose.ORTHOLOGS))
-					this.alignmentContainerSet.addAll(new ArrayList<>(this.getSimilarityOrthologs(query)));
+				System.out.println(this.queryArray.size());
+				System.out.println("RUNNING...");
 				
-				else if(this.alignmentPurpose.equals(AlignmentPurpose.OTHER)) 
-					this.getSimilarityOther(query);
+				this.getSimilarity(query);
+//				if(this.alignmentPurpose.equals(AlignmentPurpose.TRANSPORT)) 
+//					this.alignmentContainerSet.addAll(new ArrayList<>(this.getSimilarityTransport(query)));
+//				
+//				else if(this.alignmentPurpose.equals(AlignmentPurpose.ORTHOLOGS))
+//					this.alignmentContainerSet.addAll(new ArrayList<>(this.getSimilarityOrthologs(query)));
+//				
+//				else if(this.alignmentPurpose.equals(AlignmentPurpose.OTHER)) 
+//					this.getSimilarityOther(query);
 				
 			}
 			catch (Exception e) {
@@ -144,6 +148,204 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 		setChanged();
 		notifyObservers();
+	}
+	
+	
+	
+	
+	/**
+	 * @param query
+	 * @return
+	 */
+	private void getSimilarity(String query){
+
+		try {
+			double workingThreshold = this.threshold;
+			
+			String [] query_array; 
+			String query_org = "";
+			String queryLocus = "";
+
+			if(query.contains(":")) {
+				query_array = query.split(":"); 
+				query_org = query_array [0].trim();
+				queryLocus = query_array[1].trim();
+				
+				if(this.kegg_taxonomy_scores.containsKey(query_org) && this.kegg_taxonomy_scores.get(query_org)>=this.referenceTaxonomyScore)			
+					workingThreshold = this.referenceTaxonomyThreshold;
+			}
+			
+			
+			System.out.println(query);
+			
+			
+			if(!this.alignmentPurpose.equals(AlignmentPurpose.ORTHOLOGS) || (!sequenceIdsSet.containsKey(queryLocus) || sequenceIdsSet.get(queryLocus).isEmpty())) {
+
+				if(this.alignmentPurpose.equals(AlignmentPurpose.TRANSPORT)) {
+					if (this.querySpecificThreshold.containsKey(query)) 
+						workingThreshold = this.querySpecificThreshold.get(query);
+				}
+				
+				AbstractSequence<?> querySequence= this.concurrentQueryMap.get(query);
+				int seqLength = querySequence.getLength();
+				Matrix matrix;
+				short gapOpenPenalty=10, gapExtensionPenalty=1;
+				
+				if(seqLength<85){matrix=Matrix.BLOSUM80;}
+				else{matrix=Matrix.BLOSUM62;}
+				
+				//Alignment
+				PairwiseSequenceAlignerType alignmentType = null;
+				if(this.alignmentPurpose.equals(AlignmentPurpose.OTHER)) {
+
+					alignmentType = PairwiseSequenceAlignerType.LOCAL;
+					if(this.method.equals(Method.NeedlemanWunsch))
+						alignmentType = PairwiseSequenceAlignerType.GLOBAL;	
+				}
+
+				PairwiseSequenceAligner<ProteinSequence,AminoAcidCompound> alignmentMethod;
+				GapPenalty gp = new SimpleGapPenalty(gapOpenPenalty ,gapExtensionPenalty);
+				CompoundSet<AminoAcidCompound> aa = new AminoAcidCompoundSet();
+
+				Reader rd = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(matrix.getPath()));
+				SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd,matrix.getPath());
+
+				AbstractSequence<?> subjectSequence=null;
+
+				if(seqLength>0) {
+
+					for(String gene: this.staticSubjectMap.keySet()) {
+						
+						if(!this.cancel.get()) {
+
+							try {
+								
+								subjectSequence = this.staticSubjectMap.get(gene);
+								
+								double verifyingThreshold = workingThreshold;
+
+								if(this.alignmentPurpose.equals(AlignmentPurpose.OTHER)) {
+
+									alignmentMethod = Alignments.getPairwiseAligner(new ProteinSequence(querySequence.getSequenceAsString())
+													, new ProteinSequence(subjectSequence.getSequenceAsString()), alignmentType, gp, sb);
+								}
+								else {
+
+									if(this.method.equals(Method.SmithWaterman))
+										alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(subjectSequence.getSequenceAsString()), gp, sb);
+									else
+										alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(subjectSequence.getSequenceAsString()), gp, sb);
+								}
+
+								double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
+								double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
+								double identityScore = alignmentMethod.getPair().getPercentageOfIdentity();//((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
+
+								
+								double score = -1;
+								boolean go = false;
+
+								if(this.alignmentScoreType.equals(AlignmentScoreType.ALIGNMENT)) {
+									score = alignmentScore;
+									go = score > verifyingThreshold;
+								}
+								else if(this.alignmentScoreType.equals(AlignmentScoreType.IDENTITY)) {
+
+									if(this.alignmentPurpose.equals(AlignmentPurpose.OTHER)) {
+										double minResidues = PairwiseSequenceAlignement._MIN_RESIDUES;
+										score = identityScore;
+
+										if(alignmentMethod.getPair().getLength()>=minResidues) {
+
+											go = score > verifyingThreshold;
+										}
+										else {
+
+											while (alignmentMethod.getPair().getLength()<minResidues && minResidues>this.minAlignedResidues) {
+
+												minResidues = minResidues/PairwiseSequenceAlignement._LENGTH_DIVISION;;
+												verifyingThreshold += PairwiseSequenceAlignement._SCORE_INCREMENT;
+
+												if(verifyingThreshold>1)
+													verifyingThreshold=1;
+											}
+
+											if(alignmentMethod.getPair().getLength()> this.minAlignedResidues)
+												go = score > verifyingThreshold;
+										}
+									}
+									else {
+										score = identityScore;
+										go = score > verifyingThreshold;
+									}
+								}
+								else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY)) {
+									score = similarityScore;
+									go = score > verifyingThreshold;
+								}
+								
+								if(go) {
+
+									if(this.sequencesWithoutSimilarities!=null && this.sequencesWithoutSimilarities.contains(query))
+										this.sequencesWithoutSimilarities.remove(query);
+
+									double coverage1 = alignmentMethod.getPair().getAlignedSequence(1).getCoverage();
+									double coverage2 = alignmentMethod.getPair().getAlignedSequence(2).getCoverage();
+									
+									String alignQuery = query;
+									String tcdbID = "";
+									String target = subjectSequence.getOriginalHeader();
+									
+									if(this.alignmentPurpose.equals(AlignmentPurpose.TRANSPORT)) {
+
+										alignQuery = new StringTokenizer(query," ").nextToken();
+
+										StringTokenizer st = new StringTokenizer(subjectSequence.getOriginalHeader(),"|");
+										st.nextToken();
+										st.nextToken();
+
+										target = st.nextToken().toUpperCase();
+										tcdbID = st.nextToken().split(" ")[0].toUpperCase();
+									}
+									
+									AlignmentCapsule container = new AlignmentCapsule(alignQuery, target, ko, score,
+											alignmentMethod.getMaxScore(), alignmentMethod.getMinScore(), alignmentMethod.getScore(), 
+											alignmentMethod.getPair().getNumIdenticals(), alignmentMethod.getPair().getNumSimilars(), 
+											alignmentMethod.getPair().getLength(), querySequence.getLength(), subjectSequence.getLength(),
+											coverage1, coverage2, alignmentMethod.getPair().getAlignedSequence(1).getNumGapPositions(), 
+											alignmentMethod.getPair().getAlignedSequence(2).getNumGapPositions(),
+											matrix.toString(), this.method, this.alignmentScoreType);
+									
+									container.setTcdbID(tcdbID);
+									container.setEcNumber(ec_number);
+									container.setClosestOrthologues(closestOrthologs);
+									container.setModules(modules);
+
+									this.alignmentContainerSet.add(container);
+								}
+								alignmentMethod=null;
+							}
+							catch (OutOfMemoryError ee) {
+
+								System.err.println("query "+query);
+								System.err.println("query "+querySequence);
+								ee.printStackTrace();
+							}
+						}
+					}
+				}
+			}
+			else {
+				if(this.sequencesWithoutSimilarities!=null && this.sequencesWithoutSimilarities.contains(query))
+					this.sequencesWithoutSimilarities.remove(query);;
+			}
+		}
+		catch (Exception e) {
+
+			e.printStackTrace();
+			System.err.println(query);
+			System.err.println();
+		}
 	}
 
 
@@ -296,7 +498,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 								alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()),new ProteinSequence(genomeAAsequence.getSequenceAsString()), gp, sb);
 							else
 								alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(genomeAAsequence.getSequenceAsString()), gp, sb);
-
+							
 							double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
 							double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
 							double identityScore = ((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
@@ -385,7 +587,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 			if(this.method.equals(Method.NeedlemanWunsch))
 				alignmentType = PairwiseSequenceAlignerType.GLOBAL;
 
-			if(querySequence.getLength()>0) {
+			if(seqLength>0) {
 
 				for(String genome: this.staticSubjectMap.keySet()) {
 
