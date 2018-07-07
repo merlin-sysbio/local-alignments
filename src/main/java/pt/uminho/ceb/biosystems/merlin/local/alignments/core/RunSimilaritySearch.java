@@ -18,6 +18,8 @@ import javax.xml.bind.JAXBContext;
 import org.apache.axis2.dataretrieval.BaseAxisDataLocator;
 import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
 import org.biojava.nbio.core.sequence.template.AbstractSequence;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import pt.uminho.ceb.biosystems.merlin.bioapis.externalAPI.ncbi.CreateGenomeFile;
 import pt.uminho.ceb.biosystems.merlin.bioapis.externalAPI.utilities.Enumerators.FileExtensions;
@@ -54,6 +56,10 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	private boolean compareToFullGenome;
 	private AlignmentScoreType alignmentScoreType;
 	private String tcdbFastaFilePath;
+	
+	private String currentTempFolderDirectory;
+	
+	final static Logger logger = LoggerFactory.getLogger(RunSimilaritySearch.class);
 
 
 	/**
@@ -84,20 +90,18 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		this.querySequences = querySequences;
 		this.sequencesWithoutSimilarities = null;
 		this.alignmentScoreType = alignmentScoreType;
+		
+		this.currentTempFolderDirectory = FileUtils.getCurrentTempDirectory();
 	}
-
 	
-	
-///////////////////////////////////
+	///////////////////////////////////
 	/**
 	 * Run the transport similarity searches.
 	 * 
 	 * @param allSequences
 	 * @throws Exception
 	 */
-	public ConcurrentLinkedQueue<AlignmentCapsule> runBlastSearch(Map <String, Double> querySpecificThreshold, boolean isTransportersSearch) throws Exception {
-		
-		System.out.println("runBlastSearch....");
+	public ConcurrentLinkedQueue<AlignmentCapsule> runBlastSearch(boolean isTransportersSearch) throws Exception {
 		
 		List<Thread> threads = new ArrayList<Thread>();
 //		ConcurrentLinkedQueue<String> queryArray = new ConcurrentLinkedQueue<String>(this.querySequences.keySet());
@@ -111,7 +115,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		setChanged();
 		notifyObservers();
 		
-		System.out.println("Writting query sequences fasta files... ");
+		logger.debug("Writting query sequences temporary fasta files... ");
 		
 		//Distribute querySequences into fastaFiles
 		int batch_size= this.querySequences.size()/numberOfCores;
@@ -120,7 +124,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		List<String> queryFilesPaths = new ArrayList<>();
 		List<Map<String,AbstractSequence<?>>> queriesSubSetList = new ArrayList<>();
 		
-		String path = FileUtils.getCurrentTempDirectory().concat("queryBlastSubFasta_");
+		String path = this.currentTempFolderDirectory.concat("queryBlastSubFasta_");
 		String fastaFileName;
 		
 		int c=0;
@@ -156,26 +160,24 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		
 		for(int i=0; i<numberOfCores; i++) {
 			
-			System.out.println("Add thread "+i+"...");
+//			System.out.println("Add thread "+i+"...");
 
 			ModelAlignments blastAlign	= new BlastAlignment(queryFilesPaths.get(i), tcdbFastaFilePath, queriesSubSetList.get(i), 
 					this.similarity_threshold, isTransportersSearch, this.cancel, alignmentContainerSet, jc);
-
+			
 			((BlastAlignment) blastAlign).addObserver(this); 
 
 			Thread thread = new Thread(blastAlign);
 			threads.add(thread);
 			thread.start();
 		}
-
+		
 		for(Thread thread :threads)
 			thread.join();
-		
 		
 		return alignmentContainerSet;
 	}
 	///////////////////////////////
-	
 	
 	
 	/**
@@ -547,6 +549,14 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	public void setCompareToFullGenome(boolean compareToFullGenome) {
 		this.compareToFullGenome = compareToFullGenome;
 	}
+	
+	/**
+	 * @param currentTempFolderDirectory the currentTempFolderDirectory to set
+	 */
+	public void setCurrentTempFolderDirectory(String currentTempFolderDirectory) {
+		this.currentTempFolderDirectory = currentTempFolderDirectory;
+	}
+
 	
 	@Override
 	public void update(Observable arg0, Object arg1) {

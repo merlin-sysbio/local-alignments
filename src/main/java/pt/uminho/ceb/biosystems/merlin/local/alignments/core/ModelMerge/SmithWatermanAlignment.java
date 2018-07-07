@@ -148,4 +148,10 @@ public class SmithWatermanAlignment implements ModelAlignments {
 		this.cancel = cancel;
 	}
 
+//	@Override
+//	public void addObserver(Observable runSimilaritySearch) {
+//		// TODO Auto-generated method stub
+//		
+//	}
+	
 }
