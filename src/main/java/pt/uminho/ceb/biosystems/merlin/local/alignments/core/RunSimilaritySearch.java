@@ -1,6 +1,5 @@
 package pt.uminho.ceb.biosystems.merlin.local.alignments.core;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,14 +14,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.xml.bind.JAXBContext;
 
-import org.apache.axis2.dataretrieval.BaseAxisDataLocator;
-import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
 import org.biojava.nbio.core.sequence.template.AbstractSequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import pt.uminho.ceb.biosystems.merlin.bioapis.externalAPI.ncbi.CreateGenomeFile;
-import pt.uminho.ceb.biosystems.merlin.bioapis.externalAPI.utilities.Enumerators.FileExtensions;
 import pt.uminho.ceb.biosystems.merlin.local.alignments.core.ModelMerge.BlastAlignment;
 import pt.uminho.ceb.biosystems.merlin.local.alignments.core.ModelMerge.ModelAlignments;
 import pt.uminho.ceb.biosystems.merlin.utilities.Enumerators.AlignmentPurpose;
@@ -55,7 +51,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	private double referenceTaxonomyThreshold;
 	private boolean compareToFullGenome;
 	private AlignmentScoreType alignmentScoreType;
-	private String tcdbFastaFilePath;
+//	private String tcdbFastaFilePath;
+	private String subjectFastaFilePath;
 	
 	private String currentTempFolderDirectory;
 	
@@ -115,43 +112,54 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		setChanged();
 		notifyObservers();
 		
+		//Distribute querySequences into fastaFiles
+		
 		logger.debug("Writting query sequences temporary fasta files... ");
 		
-		//Distribute querySequences into fastaFiles
-		int batch_size= this.querySequences.size()/numberOfCores;
-		
-		Map<String, AbstractSequence<?>> queriesSubSet = new HashMap<>();
 		List<String> queryFilesPaths = new ArrayList<>();
 		List<Map<String,AbstractSequence<?>>> queriesSubSetList = new ArrayList<>();
 		
-		String path = this.currentTempFolderDirectory.concat("queryBlastSubFasta_");
-		String fastaFileName;
-		
-		int c=0;
-		for (String query : this.querySequences.keySet()) {
-			
-			queriesSubSet.put(query, this.querySequences.get(query));
+		String path = this.currentTempFolderDirectory.concat("queryBlast");
+		CreateGenomeFile.buildSubFastaFiles(path, this.querySequences, queriesSubSetList, queryFilesPaths, numberOfCores);
 
-			if ((c+1)%batch_size==0 && ((c+1)/batch_size < numberOfCores)) {
-				
-				fastaFileName = path.concat(Integer.toString((c+1)/batch_size)).concat("_of_").
-						concat(Integer.toString(numberOfCores)).concat(FileExtensions.PROTEIN_FAA.getExtension());
-				
-				CreateGenomeFile.buildFastaFile(fastaFileName, queriesSubSet);
-				queryFilesPaths.add(fastaFileName);
-				queriesSubSetList.add(queriesSubSet);
-				
-				queriesSubSet = new HashMap<>();
-			}
-			c++;
-		}
 		
-		fastaFileName = path.concat(Integer.toString(numberOfCores)).concat("_of_").
-				concat(Integer.toString(numberOfCores)).concat(FileExtensions.PROTEIN_FAA.getExtension());
 		
-		CreateGenomeFile.buildFastaFile(fastaFileName, queriesSubSet);
-		queriesSubSetList.add(queriesSubSet);
-		queryFilesPaths.add(fastaFileName);
+//		int batch_size= this.querySequences.size()/numberOfCores;
+//		
+//		Map<String, AbstractSequence<?>> queriesSubSet = new HashMap<>();
+//		List<String> queryFilesPaths = new ArrayList<>();
+//		List<Map<String,AbstractSequence<?>>> queriesSubSetList = new ArrayList<>();
+//		
+//		String path = this.currentTempFolderDirectory.concat("queryBlastSubFasta_");
+//		String fastaFileName;
+//		
+//		int c=0;
+//		for (String query : this.querySequences.keySet()) {
+//			
+//			queriesSubSet.put(query, this.querySequences.get(query));
+//
+//			if ((c+1)%batch_size==0 && ((c+1)/batch_size < numberOfCores)) {
+//				
+//				fastaFileName = path.concat(Integer.toString((c+1)/batch_size)).concat("_of_").
+//						concat(Integer.toString(numberOfCores)).concat(FileExtensions.PROTEIN_FAA.getExtension());
+//				
+//				CreateGenomeFile.buildFastaFile(fastaFileName, queriesSubSet);
+//				queryFilesPaths.add(fastaFileName);
+//				queriesSubSetList.add(queriesSubSet);
+//				
+//				queriesSubSet = new HashMap<>();
+//			}
+//			c++;
+//		}
+//		
+//		fastaFileName = path.concat(Integer.toString(numberOfCores)).concat("_of_").
+//				concat(Integer.toString(numberOfCores)).concat(FileExtensions.PROTEIN_FAA.getExtension());
+//		
+//		CreateGenomeFile.buildFastaFile(fastaFileName, queriesSubSet);
+//		queriesSubSetList.add(queriesSubSet);
+//		queryFilesPaths.add(fastaFileName);
+		
+		
 		
 		ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet = new ConcurrentLinkedQueue<>();
 		
@@ -162,7 +170,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			
 //			System.out.println("Add thread "+i+"...");
 
-			ModelAlignments blastAlign	= new BlastAlignment(queryFilesPaths.get(i), tcdbFastaFilePath, queriesSubSetList.get(i), 
+			ModelAlignments blastAlign	= new BlastAlignment(queryFilesPaths.get(i), this.subjectFastaFilePath, queriesSubSetList.get(i), 
 					this.similarity_threshold, isTransportersSearch, this.cancel, alignmentContainerSet, jc);
 			
 			((BlastAlignment) blastAlign).addObserver(this); 
@@ -267,26 +275,74 @@ public class RunSimilaritySearch extends Observable implements Observer {
 
 			if(queryArray.size()<numberOfCores)
 				numberOfCores=queryArray.size();
-
-			for(int i=0; i<numberOfCores; i++) {
-
-				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ecNumberAnnotations, queryArray,
-						similarity_threshold, this.counter, this.cancel, AlignmentPurpose.ORTHOLOGS, this.alignmentScoreType, 
-						alignmentContainerSet);
+			
+			//Distribute querySequences into fastaFiles
+			logger.debug("Writting query sequences temporary fasta files... ");
+			
+			List<String> queryFilesPaths = new ArrayList<>();
+			List<Map<String,AbstractSequence<?>>> queriesSubSetList = new ArrayList<>();
+			
+			String path = this.currentTempFolderDirectory.concat("queryBlast");
+			
+			System.out.println(all_sequences);
+			System.out.println(all_sequences.keySet());
+			System.out.println(all_sequences.size());
+			
+			CreateGenomeFile.buildSubFastaFiles(path, all_sequences, queriesSubSetList, queryFilesPaths, numberOfCores);
+			
+			System.out.println("ECNUMBERS ANNOTATIONS----->"+ecNumberAnnotations);
+			System.out.println(ecNumberAnnotations.size());
+	
+			//Subject Fasta File
+			CreateGenomeFile.buildFastaFile(this.subjectFastaFilePath, ecNumberAnnotations);
+			
+			JAXBContext jc = JAXBContext.newInstance(BlastOutput.class);
+			
+			if(AlignmentsUtils.checkBlastInstalation()){
 				
-				((PairwiseSequenceAlignement) lc).setSequencesWithoutSimilarities(this.sequencesWithoutSimilarities);
-				((PairwiseSequenceAlignement) lc).setEc_number(this.ec_number);
-				((PairwiseSequenceAlignement) lc).setModules(this.modules);
-				((PairwiseSequenceAlignement) lc).setClosestOrthologs(this.closestOrthologs);
-				((PairwiseSequenceAlignement) lc).setReferenceTaxonomyScore(this.referenceTaxonomyScore);
-				((PairwiseSequenceAlignement) lc).setKegg_taxonomy_scores(this.kegg_taxonomy_scores);
-				((PairwiseSequenceAlignement) lc).setReferenceTaxonomyThreshold(this.referenceTaxonomyThreshold);
-				((PairwiseSequenceAlignement) lc).setSequenceIdsSet(sequenceIdsSet);
+				for(int i=0; i<numberOfCores; i++) {
+					
+					ModelAlignments blastAlign	= new BlastAlignment(queryFilesPaths.get(i), this.subjectFastaFilePath, queriesSubSetList.get(i), 
+							this.similarity_threshold, false, this.cancel, alignmentContainerSet, jc);
+					
+					((BlastAlignment) blastAlign).setEc_number(this.ec_number);
+					((BlastAlignment) blastAlign).setModules(this.modules);
+					((BlastAlignment) blastAlign).setClosestOrthologs(this.closestOrthologs);
+					((BlastAlignment) blastAlign).setSequencesWithoutSimilarities(this.sequencesWithoutSimilarities);
+					
+					((BlastAlignment) blastAlign).setReferenceTaxonomyScore(this.referenceTaxonomyScore);
+					((BlastAlignment) blastAlign).setKegg_taxonomy_scores(this.kegg_taxonomy_scores);
+					((BlastAlignment) blastAlign).setReferenceTaxonomyThreshold(this.referenceTaxonomyThreshold);
+					((BlastAlignment) blastAlign).setSequenceIdsSet(sequenceIdsSet);
+					
+					((BlastAlignment) blastAlign).addObserver(this); 
 
-				((PairwiseSequenceAlignement) lc).addObserver(this); 
-				Thread thread = new Thread(lc);
-				threads.add(thread);
-				thread.start();
+					Thread thread = new Thread(blastAlign);
+					threads.add(thread);
+					thread.start();
+				}
+			}		
+			else{
+				for(int i=0; i<numberOfCores; i++) {
+
+					Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ecNumberAnnotations, queryArray,
+							similarity_threshold, this.counter, this.cancel, AlignmentPurpose.ORTHOLOGS, this.alignmentScoreType, 
+							alignmentContainerSet);
+
+					((PairwiseSequenceAlignement) lc).setSequencesWithoutSimilarities(this.sequencesWithoutSimilarities);
+					((PairwiseSequenceAlignement) lc).setEc_number(this.ec_number);
+					((PairwiseSequenceAlignement) lc).setModules(this.modules);
+					((PairwiseSequenceAlignement) lc).setClosestOrthologs(this.closestOrthologs);
+					((PairwiseSequenceAlignement) lc).setReferenceTaxonomyScore(this.referenceTaxonomyScore);
+					((PairwiseSequenceAlignement) lc).setKegg_taxonomy_scores(this.kegg_taxonomy_scores);
+					((PairwiseSequenceAlignement) lc).setReferenceTaxonomyThreshold(this.referenceTaxonomyThreshold);
+					((PairwiseSequenceAlignement) lc).setSequenceIdsSet(sequenceIdsSet);
+
+					((PairwiseSequenceAlignement) lc).addObserver(this); 
+					Thread thread = new Thread(lc);
+					threads.add(thread);
+					thread.start();
+				}
 			}
 
 			for(Thread thread :threads)
@@ -523,24 +579,35 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	public void setReferenceTaxonomyThreshold(double referenceTaxonomyThreshold) {
 		this.referenceTaxonomyThreshold = referenceTaxonomyThreshold;
 	}
-
+	
+	
 	/**
-	 * @return the tcdbFastaFilePath
+	 * @return
 	 */
-	public String getTcdbFastaFilePath() {
-		return tcdbFastaFilePath;
+	public String getSubjectFastaFilePath() {
+		return this.subjectFastaFilePath;
 	}
 
-
-
 	/**
-	 * @param tcdbFastaFilePath the tcdbFastaFilePath to set
+	 * @param subjectFastaFilePath
 	 */
-	public void setTcdbFastaFilePath(String tcdbFastaFilePath) {
-		this.tcdbFastaFilePath = tcdbFastaFilePath;
+	public void setSubjectFastaFilePath(String subjectFastaFilePath) {
+		this.subjectFastaFilePath = subjectFastaFilePath;
 	}
 
-
+//	/**
+//	 * @return the tcdbFastaFilePath
+//	 */
+//	public String getTcdbFastaFilePath() {
+//		return tcdbFastaFilePath;
+//	}
+//
+//	/**
+//	 * @param tcdbFastaFilePath the tcdbFastaFilePath to set
+//	 */
+//	public void setTcdbFastaFilePath(String tcdbFastaFilePath) {
+//		this.tcdbFastaFilePath = tcdbFastaFilePath;
+//	}
 
 	public boolean isCompareToFullGenome() {
 		return compareToFullGenome;

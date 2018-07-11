@@ -175,10 +175,6 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 					workingThreshold = this.referenceTaxonomyThreshold;
 			}
 			
-			
-			System.out.println(query);
-			
-			
 			if(!this.alignmentPurpose.equals(AlignmentPurpose.ORTHOLOGS) || (!sequenceIdsSet.containsKey(queryLocus) || sequenceIdsSet.get(queryLocus).isEmpty())) {
 
 				if(this.alignmentPurpose.equals(AlignmentPurpose.TRANSPORT)) {

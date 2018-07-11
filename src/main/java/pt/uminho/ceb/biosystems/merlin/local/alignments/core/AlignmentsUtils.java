@@ -58,6 +58,8 @@ public class AlignmentsUtils {
 	
 	
 	/**
+	 * Method to verify if BLAST+ is installed
+	 * 
 	 * @return
 	 */
 	public static boolean checkBlastInstalation() {
@@ -68,8 +70,9 @@ public class AlignmentsUtils {
 			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			if(e.getMessage().contains(""))
+			if(e.getMessage().contains("The system cannot find the file specified")){
 				return false;
+			}
 			else {
 				e.printStackTrace();
 				return false;

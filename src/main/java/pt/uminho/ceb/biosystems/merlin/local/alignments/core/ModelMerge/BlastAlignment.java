@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Observable;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -18,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import pt.uminho.ceb.biosystems.merlin.local.alignments.core.AlignmentsUtils;
+import pt.uminho.ceb.biosystems.merlin.utilities.Enumerators.AlignmentPurpose;
 import pt.uminho.ceb.biosystems.merlin.utilities.blast.ncbi_blastparser.BlastIterationData;
 import pt.uminho.ceb.biosystems.merlin.utilities.blast.ncbi_blastparser.Hit;
 import pt.uminho.ceb.biosystems.merlin.utilities.blast.ncbi_blastparser.NcbiBlastParser;
@@ -37,7 +39,7 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 	private static final double COVERAGE_THRESHOLD = 0.20;
 	private static final double ALIGNMENT_QUERY_LEN_THRESHOLD = 0.25;
 	private static final double QUERY_HIT_LEN_THRESHOLD = 0.25;
-	
+
 	final static Logger logger = LoggerFactory.getLogger(BlastAlignment.class);
 
 
@@ -49,7 +51,16 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 	private AtomicBoolean cancel; 
 	private Map<String,AbstractSequence<?>> querySequences;
 	private JAXBContext jc;
+	private String ec_number;
+	private Map<String,Set<String>> closestOrthologs;
+	private Map<String,Set<Integer>> modules;
+	private ConcurrentLinkedQueue<String> sequencesWithoutSimilarities;
+	private AlignmentPurpose blastPurpose;
 
+	private Map<String, List<String>> sequenceIdsSet;
+	private Map<String, Integer> kegg_taxonomy_scores;
+	private Integer referenceTaxonomyScore;
+	private Double referenceTaxonomyThreshold;
 
 
 	public BlastAlignment(String queryFasta, String subjectFasta, Map<String,AbstractSequence<?>> querySequences, double treshold,  boolean transportersSearch, AtomicBoolean cancel, ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet, JAXBContext jc){
@@ -62,6 +73,7 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 		this.alignmentContainerSet = alignmentContainerSet;
 		this.cancel = cancel;
 		this.jc = jc;
+
 	}
 
 	@Override
@@ -79,6 +91,10 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 
 				File outputFile = new File(tcdbfile.getParent().concat("\\..\\").concat("reports").concat(outputFileName));
 				outputFile.getParentFile().mkdirs();
+				
+				System.out.println("queryFasta---->"+this.queryFasta);
+				System.out.println("subjectFasta---->"+this.subjectFasta);
+				System.out.println("outputFile.getAbsolutePath---->"+outputFile.getAbsolutePath());
 
 				Process p = Runtime.getRuntime().exec("blastp -query " + this.queryFasta + " -subject " 
 						+ this.subjectFasta + " -out " + outputFile.getAbsolutePath() + " -outfmt 5");
@@ -103,7 +119,7 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 			setChanged();
 			notifyObservers();
 		}
-		
+
 		setChanged();
 		notifyObservers();
 	}
@@ -118,115 +134,139 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 		for(BlastIterationData iteration : iterations){
 
 			String queryID = iteration.getQueryDef().trim();
+			Integer queryLength = iteration.getQueryLen();
 
-			if(queryID.contains(" "))
+			String [] query_array; 
+			String query_org = "";
+			String queryLocus = "";
+
+			if(queryID.contains(":")) {
+				query_array = queryID.split(":"); 
+				query_org = query_array [0].trim();
+				queryLocus = query_array[1].trim();
+			}
+			else if(queryID.contains(" "))
 				queryID = new StringTokenizer(queryID," ").nextToken();
 			
-			double maxScore = queriesMaxScores.get(queryID);
 
-			//			List<AlignmentCapsule> iterationAlignments = new ArrayList<>();
-			List<Hit> hits = iteration.getHits();
+			if(this.blastPurpose==null || !this.blastPurpose.equals(AlignmentPurpose.ORTHOLOGS) || (!this.sequenceIdsSet.containsKey(queryLocus) || sequenceIdsSet.get(queryLocus).isEmpty())){
 
-			if(hits!=null && !hits.isEmpty()){
+				double maxScore = queriesMaxScores.get(queryID);
+				double specificThreshold = this.threshold;
+				
+				if(this.kegg_taxonomy_scores!=null && this.referenceTaxonomyScore!=null && this.referenceTaxonomyThreshold!=null)
+					if(this.kegg_taxonomy_scores.get(query_org)>=this.referenceTaxonomyScore) 
+						specificThreshold = this.referenceTaxonomyThreshold;
 
-				for(Hit hit : hits){
+				List<Hit> hits = iteration.getHits();
 
-					if(!this.cancel.get()){
+				if(hits!=null && !hits.isEmpty()){
 
-						try {
-							String tcdbID = "";
-							String hitNum = hit.getHitNum();
-							String target = hit.getHitId();
-							//				String targetLength = hit.getHitLen();
-							Integer alingmentLength = iteration.getHitAlignmentLength(hitNum);
+					for(Hit hit : hits){
 
+						if(!this.cancel.get()){
 
-							double alignmentScore = (iteration.getHitScore(hit)-ALIGNMENT_MIN_SCORE)/(maxScore-ALIGNMENT_MIN_SCORE);//alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
-							//double similarityScore = iteration.getPositivesScore(hitNum);
-							//double identityScore = iteration.getIdentityScore(hitNum);
+							try {
+								String tcdbID = "";
+								String hitNum = hit.getHitNum();
+								String target = hit.getHitId();
+								
+								Integer targetLength = iteration.getHitLength(hitNum);
+								Integer alingmentLength = iteration.getHitAlignmentLength(hitNum);
 
-							double bitScore = iteration.getHitBitScore(hit);
-							double eValue = iteration.getHitEvalue(hit);
+								double alignmentScore = (iteration.getHitScore(hit)-ALIGNMENT_MIN_SCORE)/(maxScore-ALIGNMENT_MIN_SCORE);//alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
+								//double similarityScore = iteration.getPositivesScore(hitNum);
+								//double identityScore = iteration.getIdentityScore(hitNum);
 
-							double score = -1;
+								double bitScore = iteration.getHitBitScore(hit);
+								double eValue = iteration.getHitEvalue(hit);
+								
+								double queryCoverage = iteration.getHitQueryCoverage(hitNum);//(double)(alingmentLength-iteration.getHitAlignmentGaps(hitNum))/(double)queryLength;
+								double tragetCoverage = iteration.getHiTargetCoverage(hitNum);//(double)(alingmentLength-iteration.getHitAlignmentGaps(hitNum))/(double)targetLength;
 
-							if(isTransportersSearch){
-								score = alignmentScore;
-							}
-							else{
+								double l1 = (double)queryLength/(double)targetLength;
+//								double l2 = (double)alingmentLength/(double)queryLength;
+//								double l3 = (double)alingmentLength/(double)targetLength;
+
+								double score = alignmentScore;//-1;
+
 								//				if(this.alignmentScoreType.equals(AlignmentScoreType.ALIGNMENT))
 								//					score = alignmentScore;
 								//				else if(this.alignmentScoreType.equals(AlignmentScoreType.IDENTITY))
 								//					score = identityScore;
 								//				else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY))
 								//					score = similarityScore;
-							}
 
-							
-							double coverage = (double)(alingmentLength-iteration.getHitAlignmentGaps(hitNum))/(double)iteration.getQueryLen();
-							double l1 = (double)alingmentLength/(double)iteration.getQueryLen();
-							double l2 = (double)iteration.getQueryLen()/(double)iteration.getHitLength(hitNum);
-							double l3 = (double)alingmentLength/(double)iteration.getHitLength(hitNum);
+								System.out.println(queryID+"\t"+target+"\t"+score+"\t"+specificThreshold+"\t"+iteration.getHitEvalue(hit)+"\t"+iteration.getHitBitScore(hit)
+								+"\t"+l1);//)+"\t"+l2+"\t"+l3);
 
+								boolean go = false;
+								
+								if(isTransportersSearch)
+									if(eValue<FIXED_THRESHOLD && bitScore>BITSCORE_THRESHOLD && Math.abs(1-queryCoverage)<=COVERAGE_THRESHOLD)
+										go=true;
+								else if(blastPurpose.equals(AlignmentPurpose.ORTHOLOGS))
+									if(score>specificThreshold)
+										go=true;
+									
+								if(go){
+									//									&& Math.abs(1-l1)<=ALIGNMENT_QUERY_LEN_THRESHOLD && Math.abs(1-l2)<=QUERY_HIT_LEN_THRESHOLD){
 
-							double specificThreshold = this.threshold;
-							//						if (this.querySpecificThreshold.containsKey(queryID))
-							//							specificThreshold = this.querySpecificThreshold.get(queryID);
+									if(this.sequencesWithoutSimilarities!=null && this.sequencesWithoutSimilarities.contains(queryID))
+										this.sequencesWithoutSimilarities.remove(queryID);
 
-							System.out.println(queryID+"\t"+target+"\t"+score+"\t"+specificThreshold+"\t"+iteration.getHitEvalue(hit)+"\t"+iteration.getHitBitScore(hit)
-							+"\t"+l1+"\t"+l2+"\t"+l3);
+									if(isTransportersSearch){
 
+										String hitdef = hit.getHitDef();
 
-							if(eValue<FIXED_THRESHOLD && bitScore>BITSCORE_THRESHOLD && Math.abs(1-coverage)<=COVERAGE_THRESHOLD){
-//									&& Math.abs(1-l1)<=ALIGNMENT_QUERY_LEN_THRESHOLD && Math.abs(1-l2)<=QUERY_HIT_LEN_THRESHOLD){
+										StringTokenizer st = new StringTokenizer(hitdef,"|");
+										st.nextToken();
+										st.nextToken();
+										target = st.nextToken().toUpperCase().trim();
+										tcdbID = st.nextToken().split("\\s+")[0].toUpperCase().trim();
+									}
 
-//							if(score>specificThreshold) {
+									AlignmentCapsule alignContainer = new AlignmentCapsule(queryID, target, tcdbID, this.alignmentMatrix, score);
 
-								if(isTransportersSearch){
+									alignContainer.setEvalue(eValue);
+									alignContainer.setBitScore(bitScore);
+									alignContainer.setAlignmentLength(alingmentLength);
+									alignContainer.setQueryLength(queryLength);
+									alignContainer.setTargetLength(targetLength);	
+									alignContainer.setNumIdenticals(iteration.getHitIdentity(hitNum));
+									alignContainer.setNumSimilars(iteration.getHitPositive(hitNum));
+									alignContainer.setCoverageQuery(queryCoverage);
+									alignContainer.setCoverageTarget(tragetCoverage);
 
-									String hitdef = hit.getHitDef();
+									alignContainer.setEcNumber(this.ec_number);
+									alignContainer.setClosestOrthologues(this.closestOrthologs);
+									alignContainer.setModules(modules);
 
-									StringTokenizer st = new StringTokenizer(hitdef,"|");
-									st.nextToken();
-									st.nextToken();
-									target = st.nextToken().toUpperCase().trim();
-									tcdbID = st.nextToken().split("\\s+")[0].toUpperCase().trim();
+									//					alignContainer.setMaxScore(maxScore);
+									//					alignContainer.setMinScore(0);
+									//					alignContainer.setAlignedScore(alignedScore);
+
+									//					iterationAlignments.add(align);
+									this.alignmentContainerSet.add(alignContainer);
 								}
-
-								AlignmentCapsule alignContainer = new AlignmentCapsule(queryID, target, tcdbID, this.alignmentMatrix, score);
-
-								alignContainer.setEvalue(iteration.getHitEvalue(hit));
-								alignContainer.setBitScore(iteration.getHitBitScore(hit));
-								alignContainer.setAlignmentLength((Integer)iteration.getHitAlignmentLength(hitNum));
-								alignContainer.setQueryLength(iteration.getQueryLen());
-								alignContainer.setTargetLength(iteration.getHitLength(hitNum));	
-
-								alignContainer.setNumIdenticals(iteration.getHitIdentity(hitNum));
-								alignContainer.setNumSimilars(iteration.getHitPositive(hitNum));
-
-								//					alignContainer.setMaxScore(maxScore);
-								//					alignContainer.setMinScore(0);
-								//					alignContainer.setAlignedScore(alignedScore);
-
-								//					alignContainer.setGapsQuery(gapsQuery);
-								//					alignContainer.setGapsTarget(gapsTarget); 
-
-								//					iterationAlignments.add(align);
-								this.alignmentContainerSet.add(alignContainer);
+							} 
+							catch (Exception e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
 							}
-						} 
-						catch (Exception e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
 						}
 					}
-				}
 
-				//			this.alignments.put(queryID,iterationAlignments);
+					//			this.alignments.put(queryID,iterationAlignments);
+				}
+				else{
+
+					logger.warn(iteration.getIteration().getIterationMessage().concat(" for {}"), queryID);
+				}
 			}
 			else{
-				
-				logger.warn(iteration.getIteration().getIterationMessage().concat(" for {}"), queryID);
+				if(this.sequencesWithoutSimilarities!=null && this.sequencesWithoutSimilarities.contains(queryID))
+					this.sequencesWithoutSimilarities.remove(queryID);
 			}
 		}
 	}
@@ -259,8 +299,134 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 				alignmentMap.put(query, containersList);
 			}
 		}
-		
+
 		return alignmentMap;
+	}
+
+	/**
+	 * @return the ec_number
+	 */
+	public String getEc_number() {
+		return ec_number;
+	}
+
+	/**
+	 * @param ec_number the ec_number to set
+	 */
+	public void setEc_number(String ec_number) {
+		this.ec_number = ec_number;
+	}
+
+	/**
+	 * @return the closestOrthologs
+	 */
+	public Map<String,Set<String>> getClosestOrthologs() {
+		return closestOrthologs;
+	}
+
+	/**
+	 * @param closestOrthologs the closestOrthologs to set
+	 */
+	public void setClosestOrthologs(Map<String,Set<String>> closestOrthologs) {
+		this.closestOrthologs = closestOrthologs;
+	}
+
+	/**
+	 * @return the modules
+	 */
+	public Map<String,Set<Integer>> getModules() {
+		return modules;
+	}
+
+	/**
+	 * @param modules the modules to set
+	 */
+	public void setModules(Map<String,Set<Integer>> modules) {
+		this.modules = modules;
+	}
+
+	/**
+	 * @return the sequencesWithoutSimilarities
+	 */
+	public ConcurrentLinkedQueue<String> getSequencesWithoutSimilarities() {
+		return sequencesWithoutSimilarities;
+	}
+
+	/**
+	 * @param sequencesWithoutSimilarities the sequencesWithoutSimilarities to set
+	 */
+	public void setSequencesWithoutSimilarities(ConcurrentLinkedQueue<String> sequencesWithoutSimilarities) {
+		this.sequencesWithoutSimilarities = sequencesWithoutSimilarities;
+	}
+
+	/**
+	 * @return the blastPurpose
+	 */
+	public AlignmentPurpose getBlastPurpose() {
+		return blastPurpose;
+	}
+
+	/**
+	 * @param blastPurpose the blastPurpose to set
+	 */
+	public void setBlastPurpose(AlignmentPurpose blastPurpose) {
+		this.blastPurpose = blastPurpose;
+	}
+
+	/**
+	 * @return the sequenceIdsSet
+	 */
+	public Map<String, List<String>> getSequenceIdsSet() {
+		return sequenceIdsSet;
+	}
+
+	/**
+	 * @param sequenceIdsSet the sequenceIdsSet to set
+	 */
+	public void setSequenceIdsSet(Map<String, List<String>> sequenceIdsSet) {
+		this.sequenceIdsSet = sequenceIdsSet;
+	}
+
+	/**
+	 * @return the kegg_taxonomy_scores
+	 */
+	public Map<String, Integer> getKegg_taxonomy_scores() {
+		return kegg_taxonomy_scores;
+	}
+
+	/**
+	 * @param kegg_taxonomy_scores the kegg_taxonomy_scores to set
+	 */
+	public void setKegg_taxonomy_scores(Map<String, Integer> kegg_taxonomy_scores) {
+		this.kegg_taxonomy_scores = kegg_taxonomy_scores;
+	}
+
+	/**
+	 * @return the referenceTaxonomyScore
+	 */
+	public int getReferenceTaxonomyScore() {
+		return referenceTaxonomyScore;
+	}
+
+	/**
+	 * @param referenceTaxonomyScore the referenceTaxonomyScore to set
+	 */
+	public void setReferenceTaxonomyScore(int referenceTaxonomyScore) {
+		this.referenceTaxonomyScore = referenceTaxonomyScore;
+	}
+
+	/**
+	 * @return the referenceTaxonomyThreshold
+	 */
+	public double getReferenceTaxonomyThreshold() {
+		return referenceTaxonomyThreshold;
+	}
+
+	/**
+	 * @param referenceTaxonomyThreshold the referenceTaxonomyThreshold to set
+	 */
+	public void setReferenceTaxonomyThreshold(double referenceTaxonomyThreshold) {
+		this.referenceTaxonomyThreshold = referenceTaxonomyThreshold;
 	}
 
 }
