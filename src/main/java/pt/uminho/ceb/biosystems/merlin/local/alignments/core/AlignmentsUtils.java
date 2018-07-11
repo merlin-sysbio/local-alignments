@@ -1,5 +1,6 @@
 package pt.uminho.ceb.biosystems.merlin.local.alignments.core;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,4 +55,27 @@ public class AlignmentsUtils {
 		return maxScores;
 		
 	}
+	
+	
+	/**
+	 * @return
+	 */
+	public static boolean checkBlastInstalation() {
+		
+		try {
+			Process p = Runtime.getRuntime().exec("blastp -version");
+			return true;
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			if(e.getMessage().contains(""))
+				return false;
+			else {
+				e.printStackTrace();
+				return false;
+			}
+		}
+	}
+	
+	
 }
