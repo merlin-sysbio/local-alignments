@@ -91,10 +91,6 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 
 				File outputFile = new File(tcdbfile.getParent().concat("\\..\\").concat("reports").concat(outputFileName));
 				outputFile.getParentFile().mkdirs();
-				
-				System.out.println("queryFasta---->"+this.queryFasta);
-				System.out.println("subjectFasta---->"+this.subjectFasta);
-				System.out.println("outputFile.getAbsolutePath---->"+outputFile.getAbsolutePath());
 
 				Process p = Runtime.getRuntime().exec("blastp -query " + this.queryFasta + " -subject " 
 						+ this.subjectFasta + " -out " + outputFile.getAbsolutePath() + " -outfmt 5");
@@ -130,7 +126,7 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 		List<BlastIterationData> iterations = this.blout.getResults();
 
 		Map<String, Double> queriesMaxScores = AlignmentsUtils.getSequencesAlignmentMaxScoreMap(querySequences, alignmentMatrix);
-
+		
 		for(BlastIterationData iteration : iterations){
 
 			String queryID = iteration.getQueryDef().trim();
@@ -145,12 +141,26 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 				query_org = query_array [0].trim();
 				queryLocus = query_array[1].trim();
 			}
-			else if(queryID.contains(" "))
-				queryID = new StringTokenizer(queryID," ").nextToken();
-			
+			else {
+				if(queryID.contains(" ")) 
+					queryID = new StringTokenizer(queryID," ").nextToken();
+				
+				if(this.blastPurpose.equals(AlignmentPurpose.ORTHOLOGS)) {					
+					for(String seqID : this.querySequences.keySet()) {
+						if(seqID.contains(queryID)) {
+							queryID = seqID;
+							query_array = queryID.split(":"); 
+							query_org = query_array [0].trim();
+							queryLocus = query_array[1].trim();
+						}
+					}
+				}
+			}
 
 			if(this.blastPurpose==null || !this.blastPurpose.equals(AlignmentPurpose.ORTHOLOGS) || (!this.sequenceIdsSet.containsKey(queryLocus) || sequenceIdsSet.get(queryLocus).isEmpty())){
 
+				System.out.println("QUERY----->"+queryID);
+				
 				double maxScore = queriesMaxScores.get(queryID);
 				double specificThreshold = this.threshold;
 				
@@ -197,8 +207,8 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 								//				else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY))
 								//					score = similarityScore;
 
-								System.out.println(queryID+"\t"+target+"\t"+score+"\t"+specificThreshold+"\t"+iteration.getHitEvalue(hit)+"\t"+iteration.getHitBitScore(hit)
-								+"\t"+l1);//)+"\t"+l2+"\t"+l3);
+//								System.out.println(queryID+"\t"+target+"\t"+score+"\t"+specificThreshold+"\t"+iteration.getHitEvalue(hit)+"\t"+iteration.getHitBitScore(hit)
+//								+"\t"+l1);//)+"\t"+l2+"\t"+l3);
 
 								boolean go = false;
 								
@@ -212,8 +222,11 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 								if(go){
 									//									&& Math.abs(1-l1)<=ALIGNMENT_QUERY_LEN_THRESHOLD && Math.abs(1-l2)<=QUERY_HIT_LEN_THRESHOLD){
 
-									if(this.sequencesWithoutSimilarities!=null && this.sequencesWithoutSimilarities.contains(queryID))
+									if(this.sequencesWithoutSimilarities!=null && this.sequencesWithoutSimilarities.contains(queryID)) {
+										System.out.println("REMOVING "+queryID+" from sequencesWithoutSimilarities");
+
 										this.sequencesWithoutSimilarities.remove(queryID);
+									}
 
 									if(isTransportersSearch){
 
@@ -261,12 +274,14 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 				}
 				else{
 
-					logger.warn(iteration.getIteration().getIterationMessage().concat(" for {}"), queryID);
+					logger.info(iteration.getIteration().getIterationMessage().concat(" for {}"), queryID);
 				}
 			}
 			else{
-				if(this.sequencesWithoutSimilarities!=null && this.sequencesWithoutSimilarities.contains(queryID))
+				if(this.sequencesWithoutSimilarities!=null && this.sequencesWithoutSimilarities.contains(queryID)) {
+					System.out.println("REMOVING "+queryID+" from sequencesWithoutSimilarities");
 					this.sequencesWithoutSimilarities.remove(queryID);
+				}
 			}
 		}
 	}

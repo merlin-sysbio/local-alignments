@@ -66,6 +66,7 @@ public class AlignmentsUtils {
 		
 		try {
 			Process p = Runtime.getRuntime().exec("blastp -version");
+			p.waitFor();
 			return true;
 			
 		} catch (IOException e) {
@@ -77,6 +78,9 @@ public class AlignmentsUtils {
 				e.printStackTrace();
 				return false;
 			}
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+			return false;
 		}
 	}
 	

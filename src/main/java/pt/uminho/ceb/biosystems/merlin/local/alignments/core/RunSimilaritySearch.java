@@ -88,7 +88,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		this.sequencesWithoutSimilarities = null;
 		this.alignmentScoreType = alignmentScoreType;
 		
-		this.currentTempFolderDirectory = FileUtils.getCurrentTempDirectory();
+		this.currentTempFolderDirectory = FileUtils.getHomeFolderPath().concat("temp/");
+
 	}
 	
 	///////////////////////////////////
@@ -232,9 +233,9 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	/**
 	 * @throws Exception
 	 */
-	public ConcurrentLinkedQueue<AlignmentCapsule> run_OrthologGapsSearch(Map<String, List<String>> sequenceIdsSet, ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet, boolean recursive) throws Exception {
+	public ConcurrentLinkedQueue<AlignmentCapsule> run_OrthologGapsSearch(Map<String, List<String>> sequenceIdsSet, ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet) throws Exception {
 
-//		boolean recursive = false;
+		boolean recursive = false;
 		
 		ConcurrentHashMap<String, AbstractSequence<?>> all_sequences = new ConcurrentHashMap<>(querySequences);
 		
@@ -256,9 +257,9 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			
 			if(this.sequencesWithoutSimilarities==null) {
 
-				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty())
+				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty()) 
 					ecNumberAnnotations.keySet().retainAll(this.annotatedGenes);
-
+					
 				if(!recursive) {
 
 					this.sequencesWithoutSimilarities = new ConcurrentLinkedQueue<String>();
@@ -266,6 +267,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				}
 			}
 			else  {
+				
+				System.out.println("CHECK3");
 
 				recursive = true;
 				queryArray.retainAll(this.sequencesWithoutSimilarities);
@@ -277,28 +280,23 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				numberOfCores=queryArray.size();
 			
 			//Distribute querySequences into fastaFiles
-			logger.debug("Writting query sequences temporary fasta files... ");
+			logger.info("Writting query sequences temporary fasta files... ");
 			
 			List<String> queryFilesPaths = new ArrayList<>();
 			List<Map<String,AbstractSequence<?>>> queriesSubSetList = new ArrayList<>();
 			
 			String path = this.currentTempFolderDirectory.concat("queryBlast");
 			
-			System.out.println(all_sequences);
-			System.out.println(all_sequences.keySet());
-			System.out.println(all_sequences.size());
-			
 			CreateGenomeFile.buildSubFastaFiles(path, all_sequences, queriesSubSetList, queryFilesPaths, numberOfCores);
 			
-			System.out.println("ECNUMBERS ANNOTATIONS----->"+ecNumberAnnotations);
-			System.out.println(ecNumberAnnotations.size());
-	
 			//Subject Fasta File
 			CreateGenomeFile.buildFastaFile(this.subjectFastaFilePath, ecNumberAnnotations);
 			
 			JAXBContext jc = JAXBContext.newInstance(BlastOutput.class);
 			
 			if(AlignmentsUtils.checkBlastInstalation()){
+				
+				logger.info("Starting BLAST homology searches... ");
 				
 				for(int i=0; i<numberOfCores; i++) {
 					
@@ -314,6 +312,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 					((BlastAlignment) blastAlign).setKegg_taxonomy_scores(this.kegg_taxonomy_scores);
 					((BlastAlignment) blastAlign).setReferenceTaxonomyThreshold(this.referenceTaxonomyThreshold);
 					((BlastAlignment) blastAlign).setSequenceIdsSet(sequenceIdsSet);
+					((BlastAlignment) blastAlign).setBlastPurpose(AlignmentPurpose.ORTHOLOGS);
 					
 					((BlastAlignment) blastAlign).addObserver(this); 
 
@@ -347,8 +346,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 
 			for(Thread thread :threads)
 				thread.join();
-
 		}
+		
 		return alignmentContainerSet;
 	}
 	
@@ -360,7 +359,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 */
 	public ConcurrentLinkedQueue<AlignmentCapsule> run_OrthologsSearch(Map<String, List<String>> sequenceIdsSet, ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet) throws Exception {
 		
-		boolean recursive = false;
+		Boolean recursive = false;
 		
 //		ConcurrentHashMap<String, AbstractSequence<?>> all_sequences = new ConcurrentHashMap<>(querySequences);
 //		
@@ -427,10 +426,24 @@ public class RunSimilaritySearch extends Observable implements Observer {
 //			for(Thread thread :threads)
 //				thread.join();
 		
-		this.run_OrthologGapsSearch(sequenceIdsSet, alignmentContainerSet, recursive);
-
+		if(this.sequencesWithoutSimilarities!=null)
+			recursive = true;
+		
+		this.run_OrthologGapsSearch(sequenceIdsSet, alignmentContainerSet);//,recursive);
+		
+//		System.out.println("FINAL RECURSIVE---->"+recursive);
+//		
+//		//////
+//		if(this.sequencesWithoutSimilarities!=null)
+//			System.out.println("sequencesWithoutSimilarities---->"+this.sequencesWithoutSimilarities+"\t"+sequencesWithoutSimilarities.size());
+//		else
+//			System.out.println("sequencesWithoutSimilarities---->"+null);
+//		//////
+		
+		
 		if(this.compareToFullGenome && !recursive && this.sequencesWithoutSimilarities!=null && !this.sequencesWithoutSimilarities.isEmpty())
 			this.run_OrthologsSearch(sequenceIdsSet, alignmentContainerSet);
+			
 
 //		}
 		return alignmentContainerSet;
