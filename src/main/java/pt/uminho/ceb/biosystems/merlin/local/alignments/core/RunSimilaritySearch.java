@@ -88,7 +88,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		this.sequencesWithoutSimilarities = null;
 		this.alignmentScoreType = alignmentScoreType;
 		
-		this.currentTempFolderDirectory = FileUtils.getHomeFolderPath().concat("temp/");
+		this.currentTempFolderDirectory = FileUtils.getCurrentTempDirectory();
 
 	}
 	
@@ -255,10 +255,18 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			Map<String, AbstractSequence<?>> ecNumberAnnotations = new HashMap<>();
 			ecNumberAnnotations.putAll(this.staticGenesSet);
 			
+			System.out.println("EC NUBMER ANNOT--->"+ecNumberAnnotations.keySet());
+			System.out.println("EC NUBMER ANNOT--->"+ecNumberAnnotations.size());
+
+			
 			if(this.sequencesWithoutSimilarities==null) {
 
-				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty()) 
+				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty()) {
+					
+					System.out.println("COISA");
+					System.out.println("annotatedGenes---->"+this.annotatedGenes);
 					ecNumberAnnotations.keySet().retainAll(this.annotatedGenes);
+				}
 					
 				if(!recursive) {
 
@@ -267,34 +275,38 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				}
 			}
 			else  {
-				
-				System.out.println("CHECK3");
-
 				recursive = true;
 				queryArray.retainAll(this.sequencesWithoutSimilarities);
 			}
+			
+			
+			System.out.println("EC NUBMER ANNOT--->"+ecNumberAnnotations.keySet());
+			System.out.println("EC NUBMER ANNOT--->"+ecNumberAnnotations.size());
+
 
 			int numberOfCores = Runtime.getRuntime().availableProcessors();
 
 			if(queryArray.size()<numberOfCores)
 				numberOfCores=queryArray.size();
 			
-			//Distribute querySequences into fastaFiles
-			logger.info("Writting query sequences temporary fasta files... ");
-			
-			List<String> queryFilesPaths = new ArrayList<>();
-			List<Map<String,AbstractSequence<?>>> queriesSubSetList = new ArrayList<>();
-			
-			String path = this.currentTempFolderDirectory.concat("queryBlast");
-			
-			CreateGenomeFile.buildSubFastaFiles(path, all_sequences, queriesSubSetList, queryFilesPaths, numberOfCores);
-			
-			//Subject Fasta File
-			CreateGenomeFile.buildFastaFile(this.subjectFastaFilePath, ecNumberAnnotations);
-			
-			JAXBContext jc = JAXBContext.newInstance(BlastOutput.class);
-			
 			if(AlignmentsUtils.checkBlastInstalation()){
+				
+				//Distribute querySequences into fastaFiles
+				logger.info("Writting query sequences temporary fasta files... ");
+				
+				List<String> queryFilesPaths = new ArrayList<>();
+				List<Map<String,AbstractSequence<?>>> queriesSubSetList = new ArrayList<>();
+				
+				String path = this.currentTempFolderDirectory.concat("queryBlast");
+				
+				CreateGenomeFile.buildSubFastaFiles(path, all_sequences, queriesSubSetList, queryFilesPaths, numberOfCores);
+				//Distribute querySequences into fastaFiles
+				
+				//Subject Fasta File
+				CreateGenomeFile.buildFastaFile(this.subjectFastaFilePath, ecNumberAnnotations);
+				//Subject Fasta File
+				
+				JAXBContext jc = JAXBContext.newInstance(BlastOutput.class);
 				
 				logger.info("Starting BLAST homology searches... ");
 				
@@ -361,11 +373,11 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		
 		Boolean recursive = false;
 		
-//		ConcurrentHashMap<String, AbstractSequence<?>> all_sequences = new ConcurrentHashMap<>(querySequences);
+		ConcurrentHashMap<String, AbstractSequence<?>> all_sequences = new ConcurrentHashMap<>(querySequences);
 //		
 //		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//		if(all_sequences.keySet().size()>0) {
+		if(all_sequences.keySet().size()>0) {
 //
 ////			this.setAlreadyProcessed(false);
 //			/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -431,21 +443,11 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		
 		this.run_OrthologGapsSearch(sequenceIdsSet, alignmentContainerSet);//,recursive);
 		
-//		System.out.println("FINAL RECURSIVE---->"+recursive);
-//		
-//		//////
-//		if(this.sequencesWithoutSimilarities!=null)
-//			System.out.println("sequencesWithoutSimilarities---->"+this.sequencesWithoutSimilarities+"\t"+sequencesWithoutSimilarities.size());
-//		else
-//			System.out.println("sequencesWithoutSimilarities---->"+null);
-//		//////
-		
 		
 		if(this.compareToFullGenome && !recursive && this.sequencesWithoutSimilarities!=null && !this.sequencesWithoutSimilarities.isEmpty())
 			this.run_OrthologsSearch(sequenceIdsSet, alignmentContainerSet);
-			
 
-//		}
+		}
 		return alignmentContainerSet;
 	}
 
