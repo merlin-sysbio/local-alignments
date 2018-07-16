@@ -1,6 +1,7 @@
 package pt.uminho.ceb.biosystems.merlin.local.alignments.core.ModelMerge;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -92,17 +93,25 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 				File outputFile = new File(tcdbfile.getParent().concat("\\..\\").concat("reports").concat(outputFileName));
 				outputFile.getParentFile().mkdirs();
 				
-				System.out.println(outputFile.getAbsolutePath());
+//				System.out.println(outputFile.getAbsolutePath());
 
 				Process p = Runtime.getRuntime().exec("blastp -query " + this.queryFasta + " -subject " 
 						+ this.subjectFasta + " -out " + outputFile.getAbsolutePath() + " -outfmt 5");
 
 				p.waitFor();
+				
+				if(outputFile.exists()){
+				
+					this.blout = new NcbiBlastParser(outputFile, this.jc);
+					this.alignmentMatrix = blout.getMatrix();
 
-				this.blout = new NcbiBlastParser(outputFile, this.jc);
-				this.alignmentMatrix = blout.getMatrix();
-
-				buildAlignmentCapsules();
+					buildAlignmentCapsules();
+				}
+				else{
+					
+					logger.warn("blast output .xml file wasn't generated on {}", outputFile.getAbsolutePath());
+				}
+				
 
 			} catch (IOException | InterruptedException e) {
 
@@ -112,6 +121,7 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 
 				oue.printStackTrace();
 			}
+			
 			System.gc();
 
 			setChanged();
@@ -128,6 +138,12 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 		List<BlastIterationData> iterations = this.blout.getResults();
 
 		Map<String, Double> queriesMaxScores = AlignmentsUtils.getSequencesAlignmentMaxScoreMap(querySequences, alignmentMatrix);
+		
+//		System.out.println("querySequences----->"+querySequences);
+//		System.out.println(querySequences.keySet()+"\t"+querySequences.size());
+//		System.out.println("queriesMaxScores----->"+queriesMaxScores);
+//		System.out.println(queriesMaxScores.keySet()+"\t"+querySequences.size());
+
 		
 		for(BlastIterationData iteration : iterations){
 

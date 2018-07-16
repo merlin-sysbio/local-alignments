@@ -55,6 +55,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	private String subjectFastaFilePath;
 	
 	private String currentTempFolderDirectory;
+	private boolean gapsIdentification;
 	
 	final static Logger logger = LoggerFactory.getLogger(RunSimilaritySearch.class);
 
@@ -89,6 +90,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		this.alignmentScoreType = alignmentScoreType;
 		
 		this.currentTempFolderDirectory = FileUtils.getCurrentTempDirectory();
+		this.gapsIdentification = false;
 
 	}
 	
@@ -265,6 +267,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 					
 					System.out.println("COISA");
 					System.out.println("annotatedGenes---->"+this.annotatedGenes);
+					System.out.println(this.annotatedGenes.size()+"\t"+this.annotatedGenes.isEmpty());
 					ecNumberAnnotations.keySet().retainAll(this.annotatedGenes);
 				}
 					
@@ -280,8 +283,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			}
 			
 			
-			System.out.println("EC NUBMER ANNOT--->"+ecNumberAnnotations.keySet());
-			System.out.println("EC NUBMER ANNOT--->"+ecNumberAnnotations.size());
+//			System.out.println("EC NUBMER ANNOT--->"+ecNumberAnnotations.keySet());
+//			System.out.println("EC NUBMER ANNOT--->"+ecNumberAnnotations.size());
 
 
 			int numberOfCores = Runtime.getRuntime().availableProcessors();
@@ -289,7 +292,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			if(queryArray.size()<numberOfCores)
 				numberOfCores=queryArray.size();
 			
-			if(AlignmentsUtils.checkBlastInstalation()){
+			if(AlignmentsUtils.checkBlastInstalation()){// && !isGapsIdentification()){
 				
 				//Distribute querySequences into fastaFiles
 				logger.info("Writting query sequences temporary fasta files... ");
@@ -374,78 +377,17 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		Boolean recursive = false;
 		
 		ConcurrentHashMap<String, AbstractSequence<?>> all_sequences = new ConcurrentHashMap<>(querySequences);
-//		
-//		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 		if(all_sequences.keySet().size()>0) {
-//
-////			this.setAlreadyProcessed(false);
-//			/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//			List<Thread> threads = new ArrayList<Thread>();
-//			ConcurrentLinkedQueue<String> queryArray = new ConcurrentLinkedQueue<String>(querySequences.keySet());
-//
-//			this.querySize.set(new Integer(all_sequences.size()));
-//			setChanged();
-//			notifyObservers();
-//			
-//			Map<String, AbstractSequence<?>> ecNumberAnnotations = new HashMap<>();
-//			ecNumberAnnotations.putAll(this.staticGenesSet);
-//
-//			if(this.sequencesWithoutSimilarities==null) {
-//
-//				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty())
-//					ecNumberAnnotations.keySet().retainAll(this.annotatedGenes);
-//
-//				if(!recursive) {
-//
-//					this.sequencesWithoutSimilarities = new ConcurrentLinkedQueue<String>();
-//					this.sequencesWithoutSimilarities.addAll(queryArray);
-//				}
-//			}
-//			else  {
-//
-//				recursive = true;
-//				queryArray.retainAll(this.sequencesWithoutSimilarities);
-//			}
-//
-//			int numberOfCores = Runtime.getRuntime().availableProcessors();
-//
-//			if(queryArray.size()<numberOfCores)
-//				numberOfCores=queryArray.size();
-//
-//			for(int i=0; i<numberOfCores; i++) {
-//
-//				Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ecNumberAnnotations, queryArray,
-//						similarity_threshold, this.counter, this.cancel, AlignmentPurpose.ORTHOLOGS, this.alignmentScoreType,
-//						alignmentContainerSet);
-//				
-//				((PairwiseSequenceAlignement) lc).setSequencesWithoutSimilarities(this.sequencesWithoutSimilarities);
-//				((PairwiseSequenceAlignement) lc).setEc_number(this.ec_number);
-//				
-//				((PairwiseSequenceAlignement) lc).setModules(this.modules);
-//				((PairwiseSequenceAlignement) lc).setClosestOrthologs(this.closestOrthologs);
-//				((PairwiseSequenceAlignement) lc).setReferenceTaxonomyScore(this.referenceTaxonomyScore);
-//				((PairwiseSequenceAlignement) lc).setKegg_taxonomy_scores(this.kegg_taxonomy_scores);
-//				((PairwiseSequenceAlignement) lc).setReferenceTaxonomyThreshold(this.referenceTaxonomyThreshold);
-//				((PairwiseSequenceAlignement) lc).setSequenceIdsSet(sequenceIdsSet);
-//
-//				((PairwiseSequenceAlignement) lc).addObserver(this);
-//				Thread thread = new Thread(lc);
-//				threads.add(thread);
-//				thread.start();
-//			}
-//
-//			for(Thread thread :threads)
-//				thread.join();
-		
-		if(this.sequencesWithoutSimilarities!=null)
-			recursive = true;
-		
-		this.run_OrthologGapsSearch(sequenceIdsSet, alignmentContainerSet);//,recursive);
-		
-		
-		if(this.compareToFullGenome && !recursive && this.sequencesWithoutSimilarities!=null && !this.sequencesWithoutSimilarities.isEmpty())
-			this.run_OrthologsSearch(sequenceIdsSet, alignmentContainerSet);
+
+			if(this.sequencesWithoutSimilarities!=null)
+				recursive = true;
+
+			this.run_OrthologGapsSearch(sequenceIdsSet, alignmentContainerSet);
+
+
+			if(this.compareToFullGenome && !recursive && this.sequencesWithoutSimilarities!=null && !this.sequencesWithoutSimilarities.isEmpty())
+				this.run_OrthologsSearch(sequenceIdsSet, alignmentContainerSet);
 
 		}
 		return alignmentContainerSet;
@@ -640,6 +582,20 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	}
 
 	
+	/**
+	 * @return the gapsIdentification
+	 */
+	public boolean isGapsIdentification() {
+		return gapsIdentification;
+	}
+
+	/**
+	 * @param gapsIdentification the gapsIdentification to set
+	 */
+	public void setGapsIdentification(boolean gapsIdentification) {
+		this.gapsIdentification = gapsIdentification;
+	}
+
 	@Override
 	public void update(Observable arg0, Object arg1) {
 
