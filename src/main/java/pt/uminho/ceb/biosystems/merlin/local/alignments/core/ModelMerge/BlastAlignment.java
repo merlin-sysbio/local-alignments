@@ -178,7 +178,7 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 
 			if(this.blastPurpose==null || !this.blastPurpose.equals(AlignmentPurpose.ORTHOLOGS) || (!this.sequenceIdsSet.containsKey(queryLocus) || sequenceIdsSet.get(queryLocus).isEmpty())){
 
-				System.out.println("QUERY----->"+queryID);
+//				System.out.println("QUERY----->"+queryID);
 				
 				double maxScore = queriesMaxScores.get(queryID);
 				double specificThreshold = this.threshold;

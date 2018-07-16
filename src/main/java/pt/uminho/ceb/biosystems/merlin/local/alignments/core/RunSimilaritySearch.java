@@ -257,19 +257,10 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			Map<String, AbstractSequence<?>> ecNumberAnnotations = new HashMap<>();
 			ecNumberAnnotations.putAll(this.staticGenesSet);
 			
-			System.out.println("EC NUBMER ANNOT--->"+ecNumberAnnotations.keySet());
-			System.out.println("EC NUBMER ANNOT--->"+ecNumberAnnotations.size());
-
-			
 			if(this.sequencesWithoutSimilarities==null) {
 
-				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty()) {
-					
-					System.out.println("COISA");
-					System.out.println("annotatedGenes---->"+this.annotatedGenes);
-					System.out.println(this.annotatedGenes.size()+"\t"+this.annotatedGenes.isEmpty());
+				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty()) 
 					ecNumberAnnotations.keySet().retainAll(this.annotatedGenes);
-				}
 					
 				if(!recursive) {
 
