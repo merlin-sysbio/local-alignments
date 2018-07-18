@@ -328,6 +328,9 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				}
 			}		
 			else{
+				
+				logger.info("Starting pairwise sequence alignements... ");
+
 				for(int i=0; i<numberOfCores; i++) {
 
 					Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ecNumberAnnotations, queryArray,
