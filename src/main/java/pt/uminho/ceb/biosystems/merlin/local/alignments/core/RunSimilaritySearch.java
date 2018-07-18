@@ -1,5 +1,6 @@
 package pt.uminho.ceb.biosystems.merlin.local.alignments.core;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.xml.bind.JAXBContext;
 
+import org.apache.axis2.i18n.ProjectResourceBundle;
 import org.biojava.nbio.core.sequence.template.AbstractSequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,10 +55,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	private AlignmentScoreType alignmentScoreType;
 //	private String tcdbFastaFilePath;
 	private String subjectFastaFilePath;
-	
-	private String currentTempFolderDirectory;
 	private boolean gapsIdentification;
-	
+	private String workspaceTaxonomyFolderPath;
 	final static Logger logger = LoggerFactory.getLogger(RunSimilaritySearch.class);
 
 
@@ -89,9 +89,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		this.sequencesWithoutSimilarities = null;
 		this.alignmentScoreType = alignmentScoreType;
 		
-		this.currentTempFolderDirectory = FileUtils.getCurrentTempDirectory();
 		this.gapsIdentification = false;
-
 	}
 	
 	///////////////////////////////////
@@ -122,10 +120,13 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		List<String> queryFilesPaths = new ArrayList<>();
 		List<Map<String,AbstractSequence<?>>> queriesSubSetList = new ArrayList<>();
 		
-		String path = this.currentTempFolderDirectory.concat("queryBlast");
-		CreateGenomeFile.buildSubFastaFiles(path, this.querySequences, queriesSubSetList, queryFilesPaths, numberOfCores);
-
+		String path = this.workspaceTaxonomyFolderPath.concat("/queryBlast");
 		
+		File f = new File (path);
+		if(!f.exists())
+			f.mkdir();
+		
+		CreateGenomeFile.buildSubFastaFiles(path, this.querySequences, queriesSubSetList, queryFilesPaths, numberOfCores);
 		
 //		int batch_size= this.querySequences.size()/numberOfCores;
 //		
@@ -291,7 +292,11 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				List<String> queryFilesPaths = new ArrayList<>();
 				List<Map<String,AbstractSequence<?>>> queriesSubSetList = new ArrayList<>();
 				
-				String path = this.currentTempFolderDirectory.concat("queryBlast");
+				String path = this.workspaceTaxonomyFolderPath.concat("/queryBlast");
+				
+				File f = new File (path);
+				if(!f.exists())
+					f.mkdir();
 				
 				CreateGenomeFile.buildSubFastaFiles(path, all_sequences, queriesSubSetList, queryFilesPaths, numberOfCores);
 				//Distribute querySequences into fastaFiles
@@ -569,14 +574,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	}
 	
 	/**
-	 * @param currentTempFolderDirectory the currentTempFolderDirectory to set
-	 */
-	public void setCurrentTempFolderDirectory(String currentTempFolderDirectory) {
-		this.currentTempFolderDirectory = currentTempFolderDirectory;
-	}
-
-	
-	/**
 	 * @return the gapsIdentification
 	 */
 	public boolean isGapsIdentification() {
@@ -588,6 +585,14 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 */
 	public void setGapsIdentification(boolean gapsIdentification) {
 		this.gapsIdentification = gapsIdentification;
+	}
+
+	public String getWorkspaceTaxonomyFolderPath() {
+		return workspaceTaxonomyFolderPath;
+	}
+
+	public void setWorkspaceTaxonomyFolderPath(String workspaceTaxonomyFolderPath) {
+		this.workspaceTaxonomyFolderPath = workspaceTaxonomyFolderPath;
 	}
 
 	@Override
