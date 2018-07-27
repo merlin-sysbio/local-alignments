@@ -1,14 +1,18 @@
 package pt.uminho.ceb.biosystems.merlin.local.alignments.core;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.biojava.nbio.core.alignment.matrices.SubstitutionMatrixHelper;
 import org.biojava.nbio.core.alignment.template.SubstitutionMatrix;
 import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
 import org.biojava.nbio.core.sequence.template.AbstractSequence;
+
+import pt.uminho.ceb.biosystems.merlin.utilities.containers.capsules.AlignmentCapsule;
 
 public class AlignmentsUtils {
 	
@@ -82,6 +86,51 @@ public class AlignmentsUtils {
 			e.printStackTrace();
 			return false;
 		}
+	}
+	
+	
+	/**
+	 * @param alignmentContainerSet
+	 * @return
+	 */
+	public static Map<String,List<AlignmentCapsule>> getAlignmentsByQuery(ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet){
+
+		Map<String,List<AlignmentCapsule>> alignmentMap = new HashMap<>();
+
+		for(AlignmentCapsule alignContainer : alignmentContainerSet){
+
+			String query = alignContainer.getQuery();
+
+			if(alignmentMap.containsKey(query)){
+
+				alignmentMap.get(query).add(alignContainer);
+			}
+			else{
+				List<AlignmentCapsule> containersList = new ArrayList<>();
+				containersList.add(alignContainer);
+				alignmentMap.put(query, containersList);
+			}
+		}
+
+		return alignmentMap;
+	}
+	
+	
+	/**
+	 * @param alignmentContainerSet
+	 * @return
+	 */
+	public static Map<String,String> getOrthologsGenesMap(ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet){
+		
+		Map<String,List<AlignmentCapsule>> alignmentsMap = getAlignmentsByQuery(alignmentContainerSet);
+		
+		Map<String,String> orthologsGenesMap = new HashMap<>();
+		
+		
+		
+		
+		return orthologsGenesMap;
+		
 	}
 	
 	

@@ -1,7 +1,6 @@
 package pt.uminho.ceb.biosystems.merlin.local.alignments.core.ModelMerge;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,22 +32,17 @@ import pt.uminho.ceb.biosystems.merlin.utilities.containers.capsules.AlignmentCa
  */
 public class BlastAlignment extends Observable implements ModelAlignments{
 
-	private static final double FIXED_THRESHOLD =  1E-6;
-
-	private static final double ALIGNMENT_MIN_SCORE = 0.0;
-	private static final double BITSCORE_THRESHOLD = 50;
-	private static final double COVERAGE_THRESHOLD = 0.20;
-	private static final double ALIGNMENT_QUERY_LEN_THRESHOLD = 0.25;
-	private static final double QUERY_HIT_LEN_THRESHOLD = 0.25;
-
-	final static Logger logger = LoggerFactory.getLogger(BlastAlignment.class);
-
+//	private static final double FIXED_THRESHOLD =  1E-6;
+//	private static final double ALIGNMENT_MIN_SCORE = 0.0;
+//	private static final double BITSCORE_THRESHOLD = 50;
+//	private static final double COVERAGE_THRESHOLD = 0.20;
+//	private static final double ALIGNMENT_QUERY_LEN_THRESHOLD = 0.25;
+//	private static final double QUERY_HIT_LEN_THRESHOLD = 0.25;
 
 	private NcbiBlastParser blout;
 	private ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet;
-	private String alignmentMatrix, queryFasta, subjectFasta;
+	private String alignmentMatrix, queryFasta, subjectFasta, blastOutputFolderPath;
 	private boolean isTransportersSearch = false;
-	private double threshold;
 	private AtomicBoolean cancel; 
 	private Map<String,AbstractSequence<?>> querySequences;
 	private JAXBContext jc;
@@ -57,15 +51,76 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 	private Map<String,Set<Integer>> modules;
 	private ConcurrentLinkedQueue<String> sequencesWithoutSimilarities;
 	private AlignmentPurpose blastPurpose;
+	
+	private double threshold;
+	private double evalueThreshold;
+	private double bitScoreThreshold;
+	private double queryCoverageThreshold;
+	
+	private double alignmentMinScore;
 
+	private Double referenceTaxonomyThreshold;
 	private Map<String, List<String>> sequenceIdsSet;
 	private Map<String, Integer> kegg_taxonomy_scores;
 	private Integer referenceTaxonomyScore;
-	private Double referenceTaxonomyThreshold;
+	
+	final static Logger logger = LoggerFactory.getLogger(BlastAlignment.class);
 
+	
 
+	/**
+	 * Default values for evalueThreshold(1E-6), bitScoreThreshold(50), queryCoverageThreshold(0.80) and alignmentMinScore(0.0);
+	 * 
+	 * @param queryFasta
+	 * @param subjectFasta
+	 * @param querySequences
+	 * @param treshold
+	 * @param transportersSearch
+	 * @param cancel
+	 * @param alignmentContainerSet
+	 * @param jc
+	 */
 	public BlastAlignment(String queryFasta, String subjectFasta, Map<String,AbstractSequence<?>> querySequences, double treshold,  boolean transportersSearch, AtomicBoolean cancel, ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet, JAXBContext jc){
 
+		this.setEvalueThreshold(1E-6);
+		this.setBitScoreThreshold(50);
+		this.setQueryCoverageThreshold(0.80);
+		this.setAlignmentMinScore(0);
+		this.queryFasta = queryFasta;
+		this.subjectFasta = subjectFasta;
+		this.threshold = treshold;
+		this.isTransportersSearch = transportersSearch;
+		this.querySequences = querySequences;
+		this.alignmentContainerSet = alignmentContainerSet;
+		this.cancel = cancel;
+		this.jc = jc;
+
+	}
+	
+	
+	/**
+	 * Default value for alignmentMinScore(0.0);
+	 * 
+	 * @param queryFasta
+	 * @param subjectFasta
+	 * @param querySequences
+	 * @param treshold
+	 * @param evalueThreshold
+	 * @param bitScoreThreshold
+	 * @param queryCoverageThreshold
+	 * @param transportersSearch
+	 * @param cancel
+	 * @param alignmentContainerSet
+	 * @param jc
+	 */
+	public BlastAlignment(String queryFasta, String subjectFasta, Map<String,AbstractSequence<?>> querySequences, double treshold, double evalueThreshold,
+			double bitScoreThreshold, double queryCoverageThreshold, boolean transportersSearch, AtomicBoolean cancel, ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet, JAXBContext jc){
+
+		
+		this.setEvalueThreshold(evalueThreshold);
+		this.setBitScoreThreshold(bitScoreThreshold);
+		this.setQueryCoverageThreshold(queryCoverageThreshold);
+		this.setAlignmentMinScore(0.0);
 		this.queryFasta = queryFasta;
 		this.subjectFasta = subjectFasta;
 		this.threshold = treshold;
@@ -77,6 +132,8 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 
 	}
 
+	
+	
 	@Override
 	public void run(){
 
@@ -89,8 +146,14 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 				String outputFileName = queryFasta.substring(queryFasta.lastIndexOf("/")).replace(".faa", "").concat("_blastReport.xml");
 				if(isTransportersSearch)
 					outputFileName = outputFileName.replace(".xml", "_transporters.xml");
-
-				File outputFile = new File(tcdbfile.getParent().concat("\\..\\").concat("reports").concat(outputFileName));
+				
+				File outputFile;
+				
+				if(this.blastOutputFolderPath!=null && !this.blastOutputFolderPath.isEmpty())
+					outputFile = new File(this.blastOutputFolderPath.concat(outputFileName));
+				else	
+					outputFile = new File(tcdbfile.getParent().concat("\\..\\").concat("reports").concat(outputFileName));
+				
 				outputFile.getParentFile().mkdirs();
 				
 //				System.out.println(outputFile.getAbsolutePath());
@@ -131,7 +194,6 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 		setChanged();
 		notifyObservers();
 	}
-
 
 	public void buildAlignmentCapsules(){
 
@@ -180,7 +242,7 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 
 				System.out.println("QUERY----->"+queryID);
 				
-				double maxScore = queriesMaxScores.get(queryID);
+				double maxScore = queriesMaxScores.get(iteration.getQueryDef().trim());
 				double specificThreshold = this.threshold;
 				
 				if(this.kegg_taxonomy_scores!=null && this.referenceTaxonomyScore!=null && this.referenceTaxonomyThreshold!=null)
@@ -203,7 +265,7 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 								Integer targetLength = iteration.getHitLength(hitNum);
 								Integer alignmentLength = iteration.getHitAlignmentLength(hitNum);
 
-								double alignmentScore = (iteration.getHitScore(hit)-ALIGNMENT_MIN_SCORE)/(maxScore-ALIGNMENT_MIN_SCORE);//alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
+								double alignmentScore = (iteration.getHitScore(hit)-this.alignmentMinScore)/(maxScore-this.alignmentMinScore);//alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
 								//double similarityScore = iteration.getPositivesScore(hitNum);
 								//double identityScore = iteration.getIdentityScore(hitNum);
 
@@ -231,8 +293,14 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 
 								boolean go = false;
 								
+//								System.out.println("*************Hit Num: "+hitNum+"*****************");
+//								System.out.println(">>>>>>>>"+target+"<<<<<<<<");
+//								System.out.println(eValue+"<"+FIXED_THRESHOLD + "\t" + bitScore+">"+BITSCORE_THRESHOLD + "\t" + Math.abs(1-queryCoverage)+"<="+COVERAGE_THRESHOLD);
+//								System.out.println((eValue<FIXED_THRESHOLD) + "\t" + (bitScore>BITSCORE_THRESHOLD) + "\t" + (Math.abs(1-queryCoverage)<=COVERAGE_THRESHOLD));
+//								System.out.println("------------------------------------------------------------------");
+								
 								if(isTransportersSearch){
-									if(eValue<FIXED_THRESHOLD && bitScore>BITSCORE_THRESHOLD && Math.abs(1-queryCoverage)<=COVERAGE_THRESHOLD)
+									if(eValue<this.evalueThreshold && bitScore>this.bitScoreThreshold && Math.abs(1-queryCoverage)<=this.queryCoverageThreshold)
 										go=true;
 								}
 								else if(blastPurpose.equals(AlignmentPurpose.ORTHOLOGS)){
@@ -337,6 +405,79 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 
 		return alignmentMap;
 	}
+
+	
+	/**
+	 * @return the threshold
+	 */
+	public double getThreshold() {
+		return threshold;
+	}
+
+	/**
+	 * @param threshold the threshold to set
+	 */
+	public void setThreshold(double threshold) {
+		this.threshold = threshold;
+	}
+
+	/**
+	 * @return the evalueThreshold
+	 */
+	public double getEvalueThreshold() {
+		return evalueThreshold;
+	}
+
+	/**
+	 * @param evalueThreshold the evalueThreshold to set
+	 */
+	public void setEvalueThreshold(double evalueThreshold) {
+		this.evalueThreshold = evalueThreshold;
+	}
+
+	/**
+	 * @return the bitScoreThreshold
+	 */
+	public double getBitScoreThreshold() {
+		return bitScoreThreshold;
+	}
+
+	/**
+	 * @param bitScoreThreshold the bitScoreThreshold to set
+	 */
+	public void setBitScoreThreshold(double bitScoreThreshold) {
+		this.bitScoreThreshold = bitScoreThreshold;
+	}
+
+	/**
+	 * @return the queryCoverageThreshold
+	 */
+	public double getQueryCoverageThreshold() {
+		return queryCoverageThreshold;
+	}
+
+	/**
+	 * @param queryCoverageThreshold the queryCoverageThreshold to set
+	 */
+	public void setQueryCoverageThreshold(double queryCoverageThreshold) {
+		this.queryCoverageThreshold = queryCoverageThreshold;
+	}
+
+	/**
+	 * @return the alignmentMinScore
+	 */
+	public double getAlignmentMinScore() {
+		return alignmentMinScore;
+	}
+
+
+	/**
+	 * @param alignmentMinScore the alignmentMinScore to set
+	 */
+	public void setAlignmentMinScore(double alignmentMinScore) {
+		this.alignmentMinScore = alignmentMinScore;
+	}
+
 
 	/**
 	 * @return the ec_number
@@ -462,6 +603,22 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 	 */
 	public void setReferenceTaxonomyThreshold(double referenceTaxonomyThreshold) {
 		this.referenceTaxonomyThreshold = referenceTaxonomyThreshold;
+	}
+
+
+	/**
+	 * @return the blastOutputFolderPath
+	 */
+	public String getBlastOutputFolderPath() {
+		return blastOutputFolderPath;
+	}
+
+
+	/**
+	 * @param blastOutputFolderPath the blastOutputFolderPath to set
+	 */
+	public void setBlastOutputFolderPath(String blastOutputFolderPath) {
+		this.blastOutputFolderPath = blastOutputFolderPath;
 	}
 
 }

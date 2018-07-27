@@ -52,7 +52,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	private boolean compareToFullGenome;
 	private AlignmentScoreType alignmentScoreType;
 //	private String tcdbFastaFilePath;
-	private String subjectFastaFilePath;
+	private String subjectFastaFilePath, blastOutputFolderPath;
 	
 	private String currentTempFolderDirectory;
 	private boolean gapsIdentification;
@@ -125,8 +125,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		String path = this.currentTempFolderDirectory.concat("queryBlast");
 		CreateGenomeFile.buildSubFastaFiles(path, this.querySequences, queriesSubSetList, queryFilesPaths, numberOfCores);
 
-		
-		
 //		int batch_size= this.querySequences.size()/numberOfCores;
 //		
 //		Map<String, AbstractSequence<?>> queriesSubSet = new HashMap<>();
@@ -175,6 +173,9 @@ public class RunSimilaritySearch extends Observable implements Observer {
 
 			ModelAlignments blastAlign	= new BlastAlignment(queryFilesPaths.get(i), this.subjectFastaFilePath, queriesSubSetList.get(i), 
 					this.similarity_threshold, isTransportersSearch, this.cancel, alignmentContainerSet, jc);
+			
+			if(this.blastOutputFolderPath!=null && !this.blastOutputFolderPath.isEmpty())
+				((BlastAlignment) blastAlign).setBlastOutputFolderPath(this.blastOutputFolderPath);
 			
 			((BlastAlignment) blastAlign).addObserver(this); 
 
@@ -565,6 +566,20 @@ public class RunSimilaritySearch extends Observable implements Observer {
 //	public void setTcdbFastaFilePath(String tcdbFastaFilePath) {
 //		this.tcdbFastaFilePath = tcdbFastaFilePath;
 //	}
+
+	/**
+	 * @return the blastOutputFolderPath
+	 */
+	public String getBlastOutputFolderPath() {
+		return blastOutputFolderPath;
+	}
+
+	/**
+	 * @param blastOutputFolderPath the blastOutputFolderPath to set
+	 */
+	public void setBlastOutputFolderPath(String blastOutputFolderPath) {
+		this.blastOutputFolderPath = blastOutputFolderPath;
+	}
 
 	public boolean isCompareToFullGenome() {
 		return compareToFullGenome;
