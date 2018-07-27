@@ -58,7 +58,7 @@ public class AlignmentsUtils {
 	
 	
 	/**
-	 * Method to verify if BLAST+ is installed
+	 * Method to verify if Blast+ is installed
 	 * 
 	 * @return
 	 */
@@ -75,7 +75,6 @@ public class AlignmentsUtils {
 			// TODO Auto-generated catch block
 			if(e.getMessage().contains("The system cannot find the file specified")) {
 				
-				System.out.println("BLAST NOT found\n"+e.getMessage());
 				return false;
 			}
 			else {
