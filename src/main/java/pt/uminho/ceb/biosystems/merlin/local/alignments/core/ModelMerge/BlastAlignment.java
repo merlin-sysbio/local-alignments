@@ -240,8 +240,6 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 
 			if(this.blastPurpose==null || !this.blastPurpose.equals(AlignmentPurpose.ORTHOLOGS) || (!this.sequenceIdsSet.containsKey(queryLocus) || sequenceIdsSet.get(queryLocus).isEmpty())){
 
-				System.out.println("QUERY----->"+queryID);
-				
 				double maxScore = queriesMaxScores.get(iteration.getQueryDef().trim());
 				double specificThreshold = this.threshold;
 				
@@ -299,14 +297,18 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 //								System.out.println((eValue<FIXED_THRESHOLD) + "\t" + (bitScore>BITSCORE_THRESHOLD) + "\t" + (Math.abs(1-queryCoverage)<=COVERAGE_THRESHOLD));
 //								System.out.println("------------------------------------------------------------------");
 								
-								if(isTransportersSearch){
+								if(isTransportersSearch || blastPurpose==null){
 									if(eValue<this.evalueThreshold && bitScore>this.bitScoreThreshold && Math.abs(1-queryCoverage)<=this.queryCoverageThreshold)
 										go=true;
 								}
-								else if(blastPurpose.equals(AlignmentPurpose.ORTHOLOGS)){
-									if(score>specificThreshold)
-										go=true;
+								else{
+									go = score>specificThreshold;
 								}
+									
+//								else if(blastPurpose.equals(AlignmentPurpose.ORTHOLOGS)){
+//									if(score>specificThreshold)
+//										go=true;
+//								}
 								
 								if(go){
 									//									&& Math.abs(1-l1)<=ALIGNMENT_QUERY_LEN_THRESHOLD && Math.abs(1-l2)<=QUERY_HIT_LEN_THRESHOLD){

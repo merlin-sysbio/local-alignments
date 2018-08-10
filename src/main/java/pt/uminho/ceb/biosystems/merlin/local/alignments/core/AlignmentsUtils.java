@@ -117,6 +117,8 @@ public class AlignmentsUtils {
 	
 	
 	/**
+	 * return a Map<String,String> where the keys are queryGenes sequence Ids and the values are targetGenes sequence ids
+	 * 
 	 * @param alignmentContainerSet
 	 * @return
 	 */
@@ -126,9 +128,27 @@ public class AlignmentsUtils {
 		
 		Map<String,String> orthologsGenesMap = new HashMap<>();
 		
-		
-		
-		
+		for(String queryID : alignmentsMap.keySet()){
+			
+			List<AlignmentCapsule> containers = alignmentsMap.get(queryID);
+			
+			double bestBitScore = -1;
+			
+			for(AlignmentCapsule container : containers){
+				
+				if(!orthologsGenesMap.containsKey(queryID)){
+					
+					orthologsGenesMap.put(queryID, container.getTarget());
+					bestBitScore = container.getBitScore();
+				}
+				else if(container.getBitScore()>bestBitScore){
+						
+					orthologsGenesMap.replace(queryID, container.getTarget());
+					bestBitScore = container.getBitScore();
+				}
+			}
+		}
+				
 		return orthologsGenesMap;
 		
 	}
