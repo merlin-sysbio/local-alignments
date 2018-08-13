@@ -1,5 +1,6 @@
 package pt.uminho.ceb.biosystems.merlin.local.alignments.core;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.xml.bind.JAXBContext;
 
+import org.apache.axis2.i18n.ProjectResourceBundle;
 import org.biojava.nbio.core.sequence.template.AbstractSequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,10 +54,9 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	private boolean compareToFullGenome;
 	private AlignmentScoreType alignmentScoreType;
 //	private String tcdbFastaFilePath;
-	private String subjectFastaFilePath, blastOutputFolderPath;
-	
-	private String currentTempFolderDirectory;
+	private String subjectFastaFilePath;
 	private boolean gapsIdentification;
+	private String workspaceTaxonomyFolderPath;
 	
 	final static Logger logger = LoggerFactory.getLogger(RunSimilaritySearch.class);
 
@@ -89,19 +90,25 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		this.sequencesWithoutSimilarities = null;
 		this.alignmentScoreType = alignmentScoreType;
 		
-		this.currentTempFolderDirectory = FileUtils.getCurrentTempDirectory();
 		this.gapsIdentification = false;
-
 	}
 	
 	///////////////////////////////////
+	
 	/**
 	 * Run the transport similarity searches.
+	 * If some threshold parameters were null, this method use the default values.
 	 * 
-	 * @param allSequences
+	 * Default values: evalueThreshold(1E-6), bitScoreThreshold(50), queryCoverageThreshold(0.80)
+	 * 
+	 * @param isTransportersSearch
+	 * @param eValueThreshold 
+	 * @param bitScoreThreshold
+	 * @param queryCoverageThreshold
+	 * @return
 	 * @throws Exception
 	 */
-	public ConcurrentLinkedQueue<AlignmentCapsule> runBlastSearch(boolean isTransportersSearch) throws Exception {
+	public ConcurrentLinkedQueue<AlignmentCapsule> runBlastSearch(boolean isTransportersSearch, Double eValueThreshold, Double bitScoreThreshold, Double queryCoverageThreshold) throws Exception {
 		
 		List<Thread> threads = new ArrayList<Thread>();
 //		ConcurrentLinkedQueue<String> queryArray = new ConcurrentLinkedQueue<String>(this.querySequences.keySet());
@@ -122,9 +129,14 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		List<String> queryFilesPaths = new ArrayList<>();
 		List<Map<String,AbstractSequence<?>>> queriesSubSetList = new ArrayList<>();
 		
-		String path = this.currentTempFolderDirectory.concat("queryBlast");
+		String path = this.workspaceTaxonomyFolderPath.concat("/queryBlast");
+		
+		File f = new File (path);
+		if(!f.exists())
+			f.mkdir();
+		
 		CreateGenomeFile.buildSubFastaFiles(path, this.querySequences, queriesSubSetList, queryFilesPaths, numberOfCores);
-
+		
 //		int batch_size= this.querySequences.size()/numberOfCores;
 //		
 //		Map<String, AbstractSequence<?>> queriesSubSet = new HashMap<>();
@@ -161,21 +173,32 @@ public class RunSimilaritySearch extends Observable implements Observer {
 //		queryFilesPaths.add(fastaFileName);
 		
 		
-		
 		ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet = new ConcurrentLinkedQueue<>();
-		
 		JAXBContext jc = JAXBContext.newInstance(BlastOutput.class);
-
 		
 		for(int i=0; i<numberOfCores; i++) {
 			
-//			System.out.println("Add thread "+i+"...");
-
-			ModelAlignments blastAlign	= new BlastAlignment(queryFilesPaths.get(i), this.subjectFastaFilePath, queriesSubSetList.get(i), 
-					this.similarity_threshold, isTransportersSearch, this.cancel, alignmentContainerSet, jc);
+			ModelAlignments blastAlign;
 			
-			if(this.blastOutputFolderPath!=null && !this.blastOutputFolderPath.isEmpty())
-				((BlastAlignment) blastAlign).setBlastOutputFolderPath(this.blastOutputFolderPath);
+			if(eValueThreshold!=null && bitScoreThreshold!=null && queryCoverageThreshold!=null){
+				
+				blastAlign = new BlastAlignment(queryFilesPaths.get(i), this.subjectFastaFilePath, queriesSubSetList.get(i), 
+						this.similarity_threshold, eValueThreshold, bitScoreThreshold, queryCoverageThreshold, isTransportersSearch, this.cancel, alignmentContainerSet, jc);
+			}
+			else{
+				blastAlign= new BlastAlignment(queryFilesPaths.get(i), this.subjectFastaFilePath, queriesSubSetList.get(i), 
+					this.similarity_threshold, isTransportersSearch, this.cancel, alignmentContainerSet, jc);
+				
+				if(eValueThreshold!=null)
+					((BlastAlignment) blastAlign).setEvalueThreshold(eValueThreshold);
+				if(bitScoreThreshold!=null)
+					((BlastAlignment) blastAlign).setBitScoreThreshold(bitScoreThreshold);
+				if(queryCoverageThreshold!=null)
+					((BlastAlignment) blastAlign).setQueryCoverageThreshold(queryCoverageThreshold);	
+			}
+			
+//			if(this.blastOutputFolderPath!=null && !this.blastOutputFolderPath.isEmpty())
+//				((BlastAlignment) blastAlign).setBlastOutputFolderPath(this.blastOutputFolderPath);
 			
 			((BlastAlignment) blastAlign).addObserver(this); 
 
@@ -258,19 +281,10 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			Map<String, AbstractSequence<?>> ecNumberAnnotations = new HashMap<>();
 			ecNumberAnnotations.putAll(this.staticGenesSet);
 			
-			System.out.println("EC NUBMER ANNOT--->"+ecNumberAnnotations.keySet());
-			System.out.println("EC NUBMER ANNOT--->"+ecNumberAnnotations.size());
-
-			
 			if(this.sequencesWithoutSimilarities==null) {
 
-				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty()) {
-					
-					System.out.println("COISA");
-					System.out.println("annotatedGenes---->"+this.annotatedGenes);
-					System.out.println(this.annotatedGenes.size()+"\t"+this.annotatedGenes.isEmpty());
+				if(this.annotatedGenes!= null && !this.annotatedGenes.isEmpty()) 
 					ecNumberAnnotations.keySet().retainAll(this.annotatedGenes);
-				}
 					
 				if(!recursive) {
 
@@ -283,17 +297,15 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				queryArray.retainAll(this.sequencesWithoutSimilarities);
 			}
 			
-			
 //			System.out.println("EC NUBMER ANNOT--->"+ecNumberAnnotations.keySet());
 //			System.out.println("EC NUBMER ANNOT--->"+ecNumberAnnotations.size());
-
 
 			int numberOfCores = Runtime.getRuntime().availableProcessors();
 
 			if(queryArray.size()<numberOfCores)
 				numberOfCores=queryArray.size();
 			
-			if(AlignmentsUtils.checkBlastInstalation()){// && !isGapsIdentification()){
+			if(this.method.equals(Method.Blast)){// && !isGapsIdentification()){
 				
 				//Distribute querySequences into fastaFiles
 				logger.info("Writting query sequences temporary fasta files... ");
@@ -301,7 +313,11 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				List<String> queryFilesPaths = new ArrayList<>();
 				List<Map<String,AbstractSequence<?>>> queriesSubSetList = new ArrayList<>();
 				
-				String path = this.currentTempFolderDirectory.concat("queryBlast");
+				String path = this.workspaceTaxonomyFolderPath.concat("/queryBlast");
+				
+				File f = new File (path);
+				if(!f.exists())
+					f.mkdir();
 				
 				CreateGenomeFile.buildSubFastaFiles(path, all_sequences, queriesSubSetList, queryFilesPaths, numberOfCores);
 				//Distribute querySequences into fastaFiles
@@ -312,7 +328,7 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				
 				JAXBContext jc = JAXBContext.newInstance(BlastOutput.class);
 				
-				logger.info("Starting BLAST homology searches... ");
+				logger.info("Starting Blast homology searches... ");
 				
 				for(int i=0; i<numberOfCores; i++) {
 					
@@ -338,6 +354,9 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				}
 			}		
 			else{
+				
+				logger.info("Starting pairwise sequence alignements... ");
+
 				for(int i=0; i<numberOfCores; i++) {
 
 					Runnable lc	= new PairwiseSequenceAlignement(method, all_sequences, ecNumberAnnotations, queryArray,
@@ -567,19 +586,19 @@ public class RunSimilaritySearch extends Observable implements Observer {
 //		this.tcdbFastaFilePath = tcdbFastaFilePath;
 //	}
 
-	/**
-	 * @return the blastOutputFolderPath
-	 */
-	public String getBlastOutputFolderPath() {
-		return blastOutputFolderPath;
-	}
-
-	/**
-	 * @param blastOutputFolderPath the blastOutputFolderPath to set
-	 */
-	public void setBlastOutputFolderPath(String blastOutputFolderPath) {
-		this.blastOutputFolderPath = blastOutputFolderPath;
-	}
+//	/**
+//	 * @return the blastOutputFolderPath
+//	 */
+//	public String getBlastOutputFolderPath() {
+//		return blastOutputFolderPath;
+//	}
+//
+//	/**
+//	 * @param blastOutputFolderPath the blastOutputFolderPath to set
+//	 */
+//	public void setBlastOutputFolderPath(String blastOutputFolderPath) {
+//		this.blastOutputFolderPath = blastOutputFolderPath;
+//	}
 
 	public boolean isCompareToFullGenome() {
 		return compareToFullGenome;
@@ -588,14 +607,6 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	public void setCompareToFullGenome(boolean compareToFullGenome) {
 		this.compareToFullGenome = compareToFullGenome;
 	}
-	
-	/**
-	 * @param currentTempFolderDirectory the currentTempFolderDirectory to set
-	 */
-	public void setCurrentTempFolderDirectory(String currentTempFolderDirectory) {
-		this.currentTempFolderDirectory = currentTempFolderDirectory;
-	}
-
 	
 	/**
 	 * @return the gapsIdentification
@@ -609,6 +620,14 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 */
 	public void setGapsIdentification(boolean gapsIdentification) {
 		this.gapsIdentification = gapsIdentification;
+	}
+
+	public String getWorkspaceTaxonomyFolderPath() {
+		return workspaceTaxonomyFolderPath;
+	}
+
+	public void setWorkspaceTaxonomyFolderPath(String workspaceTaxonomyFolderPath) {
+		this.workspaceTaxonomyFolderPath = workspaceTaxonomyFolderPath;
 	}
 
 	@Override

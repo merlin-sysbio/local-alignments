@@ -112,9 +112,6 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 			String query = this.queryArray.poll();
 			try {
 				
-				System.out.println(this.queryArray.size());
-				System.out.println("RUNNING...");
-				
 				this.getSimilarity(query);
 //				if(this.alignmentPurpose.equals(AlignmentPurpose.TRANSPORT)) 
 //					this.alignmentContainerSet.addAll(new ArrayList<>(this.getSimilarityTransport(query)));

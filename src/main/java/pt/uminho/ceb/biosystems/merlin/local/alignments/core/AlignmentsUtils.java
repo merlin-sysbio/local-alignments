@@ -62,20 +62,23 @@ public class AlignmentsUtils {
 	
 	
 	/**
-	 * Method to verify if BLAST+ is installed
+	 * Method to verify if Blast+ is installed
 	 * 
 	 * @return
 	 */
 	public static boolean checkBlastInstalation() {
 		
 		try {
+			
 			Process p = Runtime.getRuntime().exec("blastp -version");
 			p.waitFor();
+			
 			return true;
 			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			if(e.getMessage().contains("The system cannot find the file specified")){
+			if(e.getMessage().contains("The system cannot find the file specified")) {
+				
 				return false;
 			}
 			else {

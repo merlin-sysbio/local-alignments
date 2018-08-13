@@ -131,7 +131,6 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 		this.jc = jc;
 
 	}
-
 	
 	
 	@Override
@@ -158,10 +157,19 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 				
 //				System.out.println(outputFile.getAbsolutePath());
 
-				Process p = Runtime.getRuntime().exec("blastp -query " + this.queryFasta + " -subject " 
+				Process blastProcess = Runtime.getRuntime().exec("blastp -query " + this.queryFasta + " -subject " 
 						+ this.subjectFasta + " -out " + outputFile.getAbsolutePath() + " -outfmt 5");
 
-				p.waitFor();
+				int exitValue = blastProcess.waitFor();
+				
+				if (exitValue != 0) {
+					logger.warn("Abnormal process termination");
+				}
+				else{
+					logger.info("BLAST search completed with success!");
+				}
+				
+				blastProcess.destroy();
 				
 				if(outputFile.exists()){
 				
@@ -240,6 +248,8 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 
 			if(this.blastPurpose==null || !this.blastPurpose.equals(AlignmentPurpose.ORTHOLOGS) || (!this.sequenceIdsSet.containsKey(queryLocus) || sequenceIdsSet.get(queryLocus).isEmpty())){
 
+//				System.out.println("QUERY----->"+queryID);
+				
 				double maxScore = queriesMaxScores.get(iteration.getQueryDef().trim());
 				double specificThreshold = this.threshold;
 				
@@ -298,7 +308,7 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 //								System.out.println("------------------------------------------------------------------");
 								
 								if(isTransportersSearch || blastPurpose==null){
-									if(eValue<this.evalueThreshold && bitScore>this.bitScoreThreshold && Math.abs(1-queryCoverage)<=this.queryCoverageThreshold)
+									if(eValue<this.evalueThreshold && bitScore>this.bitScoreThreshold && Math.abs(1-queryCoverage)<=(1-queryCoverageThreshold))
 										go=true;
 								}
 								else{
@@ -384,6 +394,9 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 
 
 	/**
+	 * Method that convert the ConcurrentLinkedQueue of alignmentCapsules into a Map where the keys are the querySequence Ids 
+	 * and the values list of the correspondent AlignmentCapsules
+	 * 
 	 * @return
 	 */
 	public Map<String,List<AlignmentCapsule>> getAlignmentsByQuery(){
