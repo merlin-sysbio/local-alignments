@@ -15,7 +15,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.xml.bind.JAXBContext;
 
-import org.apache.axis2.i18n.ProjectResourceBundle;
 import org.biojava.nbio.core.sequence.template.AbstractSequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +27,6 @@ import pt.uminho.ceb.biosystems.merlin.utilities.Enumerators.AlignmentScoreType;
 import pt.uminho.ceb.biosystems.merlin.utilities.Enumerators.Method;
 import pt.uminho.ceb.biosystems.merlin.utilities.blast.ncbi_blastparser.BlastOutput;
 import pt.uminho.ceb.biosystems.merlin.utilities.containers.capsules.AlignmentCapsule;
-import pt.uminho.ceb.biosystems.merlin.utilities.io.FileUtils;
 
 /**
  * @author ODias

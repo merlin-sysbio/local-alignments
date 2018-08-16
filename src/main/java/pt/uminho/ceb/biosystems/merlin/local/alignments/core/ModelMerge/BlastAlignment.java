@@ -139,8 +139,8 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 		if(!this.cancel.get()) {
 
 			try {
-
-				File tcdbfile = new File(subjectFasta);
+				
+				File queryFile = new File(queryFasta);
 
 				String outputFileName = queryFasta.substring(queryFasta.lastIndexOf("/")).replace(".faa", "").concat("_blastReport.xml");
 				if(isTransportersSearch)
@@ -148,10 +148,13 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 				
 				File outputFile;
 				
-				if(this.blastOutputFolderPath!=null && !this.blastOutputFolderPath.isEmpty())
+				if(this.blastOutputFolderPath!=null && !this.blastOutputFolderPath.isEmpty()){
 					outputFile = new File(this.blastOutputFolderPath.concat(outputFileName));
-				else	
-					outputFile = new File(tcdbfile.getParent().concat("\\..\\").concat("reports").concat(outputFileName));
+				}
+				else{
+					outputFile = new File(queryFile.getParent().concat("\\..\\").concat("reports").concat(outputFileName));
+//					outputFile = new File(tcdbfile.getParent().concat("\\..\\").concat("reports").concat(outputFileName));
+				}
 				
 				outputFile.getParentFile().mkdirs();
 				
