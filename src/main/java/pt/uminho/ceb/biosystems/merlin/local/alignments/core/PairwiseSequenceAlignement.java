@@ -235,22 +235,22 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 								double identityScore = alignmentMethod.getPair().getPercentageOfIdentity();//((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
 
 								
-								double score = -1;
+								double alignmentTypScore = -1;
 								boolean go = false;
 
 								if(this.alignmentScoreType.equals(AlignmentScoreType.ALIGNMENT)) {
-									score = alignmentScore;
-									go = score > verifyingThreshold;
+									alignmentTypScore = alignmentScore;
+									go = alignmentTypScore > verifyingThreshold;
 								}
 								else if(this.alignmentScoreType.equals(AlignmentScoreType.IDENTITY)) {
 
 									if(this.alignmentPurpose.equals(AlignmentPurpose.OTHER)) {
 										double minResidues = PairwiseSequenceAlignement._MIN_RESIDUES;
-										score = identityScore;
+										alignmentTypScore = identityScore;
 
 										if(alignmentMethod.getPair().getLength()>=minResidues) {
 
-											go = score > verifyingThreshold;
+											go = alignmentTypScore > verifyingThreshold;
 										}
 										else {
 
@@ -264,17 +264,17 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 											}
 
 											if(alignmentMethod.getPair().getLength()> this.minAlignedResidues)
-												go = score > verifyingThreshold;
+												go = alignmentTypScore > verifyingThreshold;
 										}
 									}
 									else {
-										score = identityScore;
-										go = score > verifyingThreshold;
+										alignmentTypScore = identityScore;
+										go = alignmentTypScore > verifyingThreshold;
 									}
 								}
 								else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY)) {
-									score = similarityScore;
-									go = score > verifyingThreshold;
+									alignmentTypScore = similarityScore;
+									go = alignmentTypScore > verifyingThreshold;
 								}
 								
 								if(go) {
@@ -301,7 +301,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 										tcdbID = st.nextToken().split(" ")[0].toUpperCase();
 									}
 									
-									AlignmentCapsule container = new AlignmentCapsule(alignQuery, target, ko, score,
+									AlignmentCapsule container = new AlignmentCapsule(alignQuery, target, ko, 
 											alignmentMethod.getMaxScore(), alignmentMethod.getMinScore(), alignmentMethod.getScore(), 
 											alignmentMethod.getPair().getNumIdenticals(), alignmentMethod.getPair().getNumSimilars(), 
 											alignmentMethod.getPair().getLength(), querySequence.getLength(), subjectSequence.getLength(),
@@ -342,98 +342,98 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	}
 
 
-	/**
-	 * @param query
-	 * @param conn
-	 * @throws SQLException 
-	 * @throws CompoundNotFoundException 
-	 */
-	private List<AlignmentCapsule> getSimilarityTransport(String query) throws SQLException, CompoundNotFoundException {
-
-		List<AlignmentCapsule> similarityData = new ArrayList<>();
-		
-		AbstractSequence<?> querySequence= this.concurrentQueryMap.get(query);
-		int seqLength = querySequence.getLength();
-		Matrix matrix;
-		short gapOpenPenalty=10, gapExtensionPenalty=1;
-
-		//		if(seqLength<35){matrix=Matrix.PAM30;gapOpenPenalty=9;}
-		//		else if(seqLength<50){matrix=Matrix.PAM70;}
-		//		else 
-		if(seqLength<85)
-			matrix=Matrix.BLOSUM80;
-		else
-			matrix=Matrix.BLOSUM62;
-
-		AbstractPairwiseSequenceAligner<ProteinSequence,AminoAcidCompound> alignmentMethod;
-		GapPenalty gp = new SimpleGapPenalty(gapOpenPenalty ,gapExtensionPenalty);
-		CompoundSet<AminoAcidCompound> aa = new AminoAcidCompoundSet();
-
-		Reader rd = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(matrix.getPath()));
-		SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd,matrix.getPath());
-
-		AbstractSequence<?> tcdbAAsequence=null;
-
-		for(String tcdbRecord: this.staticSubjectMap.keySet()) {
-
-			if(!this.cancel.get()) {
-
-				tcdbAAsequence = this.staticSubjectMap.get(tcdbRecord);
-				
-				if(this.method.equals(Method.SmithWaterman))
-					alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(tcdbAAsequence.getSequenceAsString()), gp, sb);
-				else
-					alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(tcdbAAsequence.getSequenceAsString()), gp, sb);
-
-				double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
-				double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
-				double identityScore = ((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
-
-				double score = -1;
-				if(this.alignmentScoreType.equals(AlignmentScoreType.ALIGNMENT))
-					score = alignmentScore;
-				else if(this.alignmentScoreType.equals(AlignmentScoreType.IDENTITY))
-					score = identityScore;
-				else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY))
-					score = similarityScore;
-				
-				double specificThreshold = this.threshold;
-				if (this.querySpecificThreshold.containsKey(query))
-					specificThreshold = this.querySpecificThreshold.get(query);
-
-				if(score>specificThreshold) {
-
-					if(this.sequencesWithoutSimilarities!=null && this.sequencesWithoutSimilarities.contains(query))
-						this.sequencesWithoutSimilarities.remove(query);
-
-					String query2 = new StringTokenizer(query," ").nextToken();
-
-					StringTokenizer st = new StringTokenizer(this.staticSubjectMap.get(tcdbRecord).getOriginalHeader(),"|");
-					st.nextToken();
-					st.nextToken();
-					
-					String target = st.nextToken().toUpperCase();
-					String tcdbID = st.nextToken().split(" ")[0].toUpperCase();
-
-//					similarityData[3]= alignmentScore+"";
-
-//					similarityData[4]= matrix.toString();
-
-//					similarityData[5]= this.numberOfHelicesMap.get(query).toString();			VERIFICAR SE ESTE FAZ FALTA!!!!!!!!!!!!!!
-					
-					AlignmentCapsule container = new AlignmentCapsule(query2, target, tcdbID, matrix.toString(), alignmentScore);
-					similarityData.add(container);
-
-//					this.loadTransportData(similarityData, conn);
-
-//					similarityData=null;
-				}
-				alignmentMethod=null;
-			}
-		}
-
-		return similarityData;
-	}
+//	/**
+//	 * @param query
+//	 * @param conn
+//	 * @throws SQLException 
+//	 * @throws CompoundNotFoundException 
+//	 */
+//	private List<AlignmentCapsule> getSimilarityTransport(String query) throws SQLException, CompoundNotFoundException {
+//
+//		List<AlignmentCapsule> similarityData = new ArrayList<>();
+//		
+//		AbstractSequence<?> querySequence= this.concurrentQueryMap.get(query);
+//		int seqLength = querySequence.getLength();
+//		Matrix matrix;
+//		short gapOpenPenalty=10, gapExtensionPenalty=1;
+//
+//		//		if(seqLength<35){matrix=Matrix.PAM30;gapOpenPenalty=9;}
+//		//		else if(seqLength<50){matrix=Matrix.PAM70;}
+//		//		else 
+//		if(seqLength<85)
+//			matrix=Matrix.BLOSUM80;
+//		else
+//			matrix=Matrix.BLOSUM62;
+//
+//		AbstractPairwiseSequenceAligner<ProteinSequence,AminoAcidCompound> alignmentMethod;
+//		GapPenalty gp = new SimpleGapPenalty(gapOpenPenalty ,gapExtensionPenalty);
+//		CompoundSet<AminoAcidCompound> aa = new AminoAcidCompoundSet();
+//
+//		Reader rd = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(matrix.getPath()));
+//		SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd,matrix.getPath());
+//
+//		AbstractSequence<?> tcdbAAsequence=null;
+//
+//		for(String tcdbRecord: this.staticSubjectMap.keySet()) {
+//
+//			if(!this.cancel.get()) {
+//
+//				tcdbAAsequence = this.staticSubjectMap.get(tcdbRecord);
+//				
+//				if(this.method.equals(Method.SmithWaterman))
+//					alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(tcdbAAsequence.getSequenceAsString()), gp, sb);
+//				else
+//					alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(tcdbAAsequence.getSequenceAsString()), gp, sb);
+//
+//				double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
+//				double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
+//				double identityScore = ((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
+//
+//				double score = -1;
+//				if(this.alignmentScoreType.equals(AlignmentScoreType.ALIGNMENT))
+//					score = alignmentScore;
+//				else if(this.alignmentScoreType.equals(AlignmentScoreType.IDENTITY))
+//					score = identityScore;
+//				else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY))
+//					score = similarityScore;
+//				
+//				double specificThreshold = this.threshold;
+//				if (this.querySpecificThreshold.containsKey(query))
+//					specificThreshold = this.querySpecificThreshold.get(query);
+//
+//				if(score>specificThreshold) {
+//
+//					if(this.sequencesWithoutSimilarities!=null && this.sequencesWithoutSimilarities.contains(query))
+//						this.sequencesWithoutSimilarities.remove(query);
+//
+//					String query2 = new StringTokenizer(query," ").nextToken();
+//
+//					StringTokenizer st = new StringTokenizer(this.staticSubjectMap.get(tcdbRecord).getOriginalHeader(),"|");
+//					st.nextToken();
+//					st.nextToken();
+//					
+//					String target = st.nextToken().toUpperCase();
+//					String tcdbID = st.nextToken().split(" ")[0].toUpperCase();
+//
+////					similarityData[3]= alignmentScore+"";
+//
+////					similarityData[4]= matrix.toString();
+//
+////					similarityData[5]= this.numberOfHelicesMap.get(query).toString();			VERIFICAR SE ESTE FAZ FALTA!!!!!!!!!!!!!!
+//					
+//					AlignmentCapsule container = new AlignmentCapsule(query2, target, tcdbID, matrix.toString(), alignmentScore);
+//					similarityData.add(container);
+//
+////					this.loadTransportData(similarityData, conn);
+//
+////					similarityData=null;
+//				}
+//				alignmentMethod=null;
+//			}
+//		}
+//
+//		return similarityData;
+//	}
 
 
 
@@ -442,99 +442,99 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	 * @param conn
 	 * @throws SQLException 
 	 */
-	private List<AlignmentCapsule> getSimilarityOrthologs(String query) throws SQLException {
-
-		try {
-			
-			List<AlignmentCapsule> similarityData = new ArrayList<>();
-			
-			String [] query_array = query.split(":"); 
-
-			String query_org = query_array [0].trim();
-			String queryLocus = query_array[1].trim();
-			
-			if(!sequenceIdsSet.containsKey(queryLocus) || sequenceIdsSet.get(queryLocus).isEmpty()) {
-				
-				AbstractSequence<?> querySequence= this.concurrentQueryMap.get(query);
-				
-				int seqLength = querySequence.getLength();
-				
-				Matrix matrix;
-				short gapOpenPenalty=10, gapExtensionPenalty=1;
-
-				if(seqLength<85){matrix=Matrix.BLOSUM80;}
-				else{matrix=Matrix.BLOSUM62;}
-
-				AbstractPairwiseSequenceAligner<ProteinSequence,AminoAcidCompound> alignmentMethod;
-				GapPenalty gp = new SimpleGapPenalty(gapOpenPenalty ,gapExtensionPenalty);
-				CompoundSet<AminoAcidCompound> aa = new AminoAcidCompoundSet();
-
-				Reader rd = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(matrix.getPath()));
-				SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd,matrix.getPath());
-
-				AbstractSequence<?> genomeAAsequence=null;
-
-				double threshold = this.threshold;
-				
-				if(this.kegg_taxonomy_scores.get(query_org)>=this.referenceTaxonomyScore) 
-					threshold = this.referenceTaxonomyThreshold;
-				
-				if(seqLength>0) {
-
-					for(String gene: this.staticSubjectMap.keySet()) {
-						
-						if(!this.cancel.get()) {
-
-							genomeAAsequence = this.staticSubjectMap.get(gene);
-
-							if(this.method.equals(Method.SmithWaterman))
-								alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()),new ProteinSequence(genomeAAsequence.getSequenceAsString()), gp, sb);
-							else
-								alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(genomeAAsequence.getSequenceAsString()), gp, sb);
-							
-							double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
-							double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
-							double identityScore = ((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
-
-							double score = -1;
-							if(this.alignmentScoreType.equals(AlignmentScoreType.ALIGNMENT))
-								score = alignmentScore;
-							else if(this.alignmentScoreType.equals(AlignmentScoreType.IDENTITY))
-								score = identityScore;
-							else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY))
-								score = similarityScore;
-							
-							
-							if(score > threshold) {
-								
-								this.sequencesWithoutSimilarities.remove(query);
-								
-								AlignedSequence<ProteinSequence, AminoAcidCompound> a = alignmentMethod.getPair().getAlignedSequence(1);
-								AlignedSequence<ProteinSequence, AminoAcidCompound> b = alignmentMethod.getPair().getAlignedSequence(2);
-								
-								double c1 = a.getCoverage();
-								double c2 = b.getCoverage();
-								
-								AlignmentCapsule container = new AlignmentCapsule(query, c1, c2, this.staticSubjectMap.get(gene).getOriginalHeader(), 
-										alignmentScore, ec_number, closestOrthologs, modules);
-								similarityData.add(container);
-							}
-							alignmentMethod=null;
-						}
-					}
-				}
-			}
-			else 
-				this.sequencesWithoutSimilarities.remove(query);
-			
-			return similarityData;
-		}
-		catch (Exception e) {
-
-			e.printStackTrace();
-		}
-		return null;
-	}
+//	private List<AlignmentCapsule> getSimilarityOrthologs(String query) throws SQLException {
+//
+//		try {
+//			
+//			List<AlignmentCapsule> similarityData = new ArrayList<>();
+//			
+//			String [] query_array = query.split(":"); 
+//
+//			String query_org = query_array [0].trim();
+//			String queryLocus = query_array[1].trim();
+//			
+//			if(!sequenceIdsSet.containsKey(queryLocus) || sequenceIdsSet.get(queryLocus).isEmpty()) {
+//				
+//				AbstractSequence<?> querySequence= this.concurrentQueryMap.get(query);
+//				
+//				int seqLength = querySequence.getLength();
+//				
+//				Matrix matrix;
+//				short gapOpenPenalty=10, gapExtensionPenalty=1;
+//
+//				if(seqLength<85){matrix=Matrix.BLOSUM80;}
+//				else{matrix=Matrix.BLOSUM62;}
+//
+//				AbstractPairwiseSequenceAligner<ProteinSequence,AminoAcidCompound> alignmentMethod;
+//				GapPenalty gp = new SimpleGapPenalty(gapOpenPenalty ,gapExtensionPenalty);
+//				CompoundSet<AminoAcidCompound> aa = new AminoAcidCompoundSet();
+//
+//				Reader rd = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(matrix.getPath()));
+//				SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd,matrix.getPath());
+//
+//				AbstractSequence<?> genomeAAsequence=null;
+//
+//				double threshold = this.threshold;
+//				
+//				if(this.kegg_taxonomy_scores.get(query_org)>=this.referenceTaxonomyScore) 
+//					threshold = this.referenceTaxonomyThreshold;
+//				
+//				if(seqLength>0) {
+//
+//					for(String gene: this.staticSubjectMap.keySet()) {
+//						
+//						if(!this.cancel.get()) {
+//
+//							genomeAAsequence = this.staticSubjectMap.get(gene);
+//
+//							if(this.method.equals(Method.SmithWaterman))
+//								alignmentMethod=new SmithWaterman<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()),new ProteinSequence(genomeAAsequence.getSequenceAsString()), gp, sb);
+//							else
+//								alignmentMethod=new NeedlemanWunsch<ProteinSequence,AminoAcidCompound>(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(genomeAAsequence.getSequenceAsString()), gp, sb);
+//							
+//							double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
+//							double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
+//							double identityScore = ((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
+//
+//							double score = -1;
+//							if(this.alignmentScoreType.equals(AlignmentScoreType.ALIGNMENT))
+//								score = alignmentScore;
+//							else if(this.alignmentScoreType.equals(AlignmentScoreType.IDENTITY))
+//								score = identityScore;
+//							else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY))
+//								score = similarityScore;
+//							
+//							
+//							if(score > threshold) {
+//								
+//								this.sequencesWithoutSimilarities.remove(query);
+//								
+//								AlignedSequence<ProteinSequence, AminoAcidCompound> a = alignmentMethod.getPair().getAlignedSequence(1);
+//								AlignedSequence<ProteinSequence, AminoAcidCompound> b = alignmentMethod.getPair().getAlignedSequence(2);
+//								
+//								double c1 = a.getCoverage();
+//								double c2 = b.getCoverage();
+//								
+//								AlignmentCapsule container = new AlignmentCapsule(query, c1, c2, this.staticSubjectMap.get(gene).getOriginalHeader(), 
+//										alignmentScore, ec_number, closestOrthologs, modules);
+//								similarityData.add(container);
+//							}
+//							alignmentMethod=null;
+//						}
+//					}
+//				}
+//			}
+//			else 
+//				this.sequencesWithoutSimilarities.remove(query);
+//			
+//			return similarityData;
+//		}
+//		catch (Exception e) {
+//
+//			e.printStackTrace();
+//		}
+//		return null;
+//	}
 	
 
 	/**
@@ -542,126 +542,126 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 	 * @param conn
 	 * @throws SQLException
 	 */
-	private void getSimilarityOther(String query) throws SQLException {
-
-		try {
-
-			String [] query_array = query.split(":"); 
-			String query_org = query_array [0].trim();
-			//String queryLocus = query_array[1].trim();
-
-			AbstractSequence<?> querySequence= this.concurrentQueryMap.get(query);
-			int seqLength = querySequence.getLength();
-			
-			//parameters
-			Matrix matrix;
-			short gapOpenPenalty=10, gapExtensionPenalty=1;
-
-			if(seqLength<85){matrix=Matrix.BLOSUM80;}
-			else{matrix=Matrix.BLOSUM62;}
-
-			GapPenalty gp = new SimpleGapPenalty(gapOpenPenalty ,gapExtensionPenalty);
-			CompoundSet<AminoAcidCompound> aa = new AminoAcidCompoundSet();
-			Reader rd = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(matrix.getPath()));
-			SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd,matrix.getPath());
-
-			AbstractSequence<?> genomeAAsequence=null;
-
-			double workingThreshold = this.threshold;
-
-			if(this.kegg_taxonomy_scores.containsKey(query_org) && 
-					this.kegg_taxonomy_scores.get(query_org)>=this.referenceTaxonomyScore) {
-
-				workingThreshold = this.referenceTaxonomyThreshold;
-			}
-
-			//alignment
-			PairwiseSequenceAlignerType alignmentType = PairwiseSequenceAlignerType.LOCAL;
-			if(this.method.equals(Method.NeedlemanWunsch))
-				alignmentType = PairwiseSequenceAlignerType.GLOBAL;
-
-			if(seqLength>0) {
-
-				for(String genome: this.staticSubjectMap.keySet()) {
-
-					double verifyingThreshold = workingThreshold;
-
-					try {
-
-						genomeAAsequence = this.staticSubjectMap.get(genome);
-
-						PairwiseSequenceAligner<ProteinSequence, AminoAcidCompound> result = Alignments.getPairwiseAligner(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(genomeAAsequence.getSequenceAsString()), alignmentType, gp, sb);
-
-						double alignmentScore = result.getSimilarity();
-						double similarityScore = ((double) result.getPair().getNumSimilars()/result.getPair().getLength());
-						double identityScore = ((double)result.getPair().getNumIdenticals()/result.getPair().getLength());
-
-						double score = -1;
-						boolean go = false;
-
-						if(this.alignmentScoreType.equals(AlignmentScoreType.ALIGNMENT)) {
-
-							score = alignmentScore;
-							go = score > verifyingThreshold;
-						}
-						else if(this.alignmentScoreType.equals(AlignmentScoreType.IDENTITY)) {
-
-							double minResidues = PairwiseSequenceAlignement._MIN_RESIDUES;
-							score = identityScore;
-
-							if(result.getPair().getLength()>=minResidues) {
-
-								go = score > verifyingThreshold;
-							}
-							else {
-
-								while (result.getPair().getLength()<minResidues && minResidues>this.minAlignedResidues) {
-
-									minResidues = minResidues/PairwiseSequenceAlignement._LENGTH_DIVISION;;
-									verifyingThreshold += PairwiseSequenceAlignement._SCORE_INCREMENT;
-									
-									if(verifyingThreshold>1)
-										verifyingThreshold=1;
-								}
-
-								if(result.getPair().getLength()> this.minAlignedResidues)
-									go = score > verifyingThreshold;
-							}
-						}
-						else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY)) {
-
-							score = similarityScore;
-							go = score > verifyingThreshold;
-						}
-
-						if(go) {
-
-							AlignmentCapsule alignmentContainer = new AlignmentCapsule(query, this.staticSubjectMap.get(genome).getOriginalHeader(), ko, 
-									score, result.getMaxScore(), result.getMinScore(), result.getScore(), 
-									result.getPair().getNumIdenticals(), result.getPair().getNumSimilars(), 
-									result.getPair().getLength(), querySequence.getLength(), genomeAAsequence.getLength(),
-									result.getPair().getAlignedSequence(1).getCoverage(), result.getPair().getAlignedSequence(2).getCoverage(),
-									result.getPair().getAlignedSequence(1).getNumGapPositions(), result.getPair().getAlignedSequence(2).getNumGapPositions(),
-									matrix.toString(), this.method, this.alignmentScoreType);
-							alignmentContainerSet.add(alignmentContainer);
-						}
-					} 
-					catch (OutOfMemoryError ee) {
-
-						System.err.println("query "+query);
-						System.err.println("query "+querySequence);
-						ee.printStackTrace();
-					}
-				}
-			}
-		}
-		catch (Exception e) {
-
-			e.printStackTrace();
-			System.err.println(query);
-			System.err.println();
-		}
-	}
+//	private void getSimilarityOther(String query) throws SQLException {
+//
+//		try {
+//
+//			String [] query_array = query.split(":"); 
+//			String query_org = query_array [0].trim();
+//			//String queryLocus = query_array[1].trim();
+//
+//			AbstractSequence<?> querySequence= this.concurrentQueryMap.get(query);
+//			int seqLength = querySequence.getLength();
+//			
+//			//parameters
+//			Matrix matrix;
+//			short gapOpenPenalty=10, gapExtensionPenalty=1;
+//
+//			if(seqLength<85){matrix=Matrix.BLOSUM80;}
+//			else{matrix=Matrix.BLOSUM62;}
+//
+//			GapPenalty gp = new SimpleGapPenalty(gapOpenPenalty ,gapExtensionPenalty);
+//			CompoundSet<AminoAcidCompound> aa = new AminoAcidCompoundSet();
+//			Reader rd = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(matrix.getPath()));
+//			SubstitutionMatrix<AminoAcidCompound> sb = new SimpleSubstitutionMatrix<AminoAcidCompound>(aa, rd,matrix.getPath());
+//
+//			AbstractSequence<?> genomeAAsequence=null;
+//
+//			double workingThreshold = this.threshold;
+//
+//			if(this.kegg_taxonomy_scores.containsKey(query_org) && 
+//					this.kegg_taxonomy_scores.get(query_org)>=this.referenceTaxonomyScore) {
+//
+//				workingThreshold = this.referenceTaxonomyThreshold;
+//			}
+//
+//			//alignment
+//			PairwiseSequenceAlignerType alignmentType = PairwiseSequenceAlignerType.LOCAL;
+//			if(this.method.equals(Method.NeedlemanWunsch))
+//				alignmentType = PairwiseSequenceAlignerType.GLOBAL;
+//
+//			if(seqLength>0) {
+//
+//				for(String genome: this.staticSubjectMap.keySet()) {
+//
+//					double verifyingThreshold = workingThreshold;
+//
+//					try {
+//
+//						genomeAAsequence = this.staticSubjectMap.get(genome);
+//
+//						PairwiseSequenceAligner<ProteinSequence, AminoAcidCompound> result = Alignments.getPairwiseAligner(new ProteinSequence(querySequence.getSequenceAsString()), new ProteinSequence(genomeAAsequence.getSequenceAsString()), alignmentType, gp, sb);
+//
+//						double alignmentScore = result.getSimilarity();
+//						double similarityScore = ((double) result.getPair().getNumSimilars()/result.getPair().getLength());
+//						double identityScore = ((double)result.getPair().getNumIdenticals()/result.getPair().getLength());
+//
+//						double score = -1;
+//						boolean go = false;
+//
+//						if(this.alignmentScoreType.equals(AlignmentScoreType.ALIGNMENT)) {
+//
+//							score = alignmentScore;
+//							go = score > verifyingThreshold;
+//						}
+//						else if(this.alignmentScoreType.equals(AlignmentScoreType.IDENTITY)) {
+//
+//							double minResidues = PairwiseSequenceAlignement._MIN_RESIDUES;
+//							score = identityScore;
+//
+//							if(result.getPair().getLength()>=minResidues) {
+//
+//								go = score > verifyingThreshold;
+//							}
+//							else {
+//
+//								while (result.getPair().getLength()<minResidues && minResidues>this.minAlignedResidues) {
+//
+//									minResidues = minResidues/PairwiseSequenceAlignement._LENGTH_DIVISION;;
+//									verifyingThreshold += PairwiseSequenceAlignement._SCORE_INCREMENT;
+//									
+//									if(verifyingThreshold>1)
+//										verifyingThreshold=1;
+//								}
+//
+//								if(result.getPair().getLength()> this.minAlignedResidues)
+//									go = score > verifyingThreshold;
+//							}
+//						}
+//						else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY)) {
+//
+//							score = similarityScore;
+//							go = score > verifyingThreshold;
+//						}
+//
+//						if(go) {
+//
+//							AlignmentCapsule alignmentContainer = new AlignmentCapsule(query, this.staticSubjectMap.get(genome).getOriginalHeader(), ko, 
+//									score, result.getMaxScore(), result.getMinScore(), result.getScore(), 
+//									result.getPair().getNumIdenticals(), result.getPair().getNumSimilars(), 
+//									result.getPair().getLength(), querySequence.getLength(), genomeAAsequence.getLength(),
+//									result.getPair().getAlignedSequence(1).getCoverage(), result.getPair().getAlignedSequence(2).getCoverage(),
+//									result.getPair().getAlignedSequence(1).getNumGapPositions(), result.getPair().getAlignedSequence(2).getNumGapPositions(),
+//									matrix.toString(), this.method, this.alignmentScoreType);
+//							alignmentContainerSet.add(alignmentContainer);
+//						}
+//					} 
+//					catch (OutOfMemoryError ee) {
+//
+//						System.err.println("query "+query);
+//						System.err.println("query "+querySequence);
+//						ee.printStackTrace();
+//					}
+//				}
+//			}
+//		}
+//		catch (Exception e) {
+//
+//			e.printStackTrace();
+//			System.err.println(query);
+//			System.err.println();
+//		}
+//	}
 
 	//	/**
 	//	 * @param conn

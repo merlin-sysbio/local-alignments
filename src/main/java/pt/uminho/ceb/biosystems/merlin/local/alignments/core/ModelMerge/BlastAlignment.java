@@ -274,10 +274,10 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 								
 								Integer targetLength = iteration.getHitLength(hitNum);
 								Integer alignmentLength = iteration.getHitAlignmentLength(hitNum);
+								
+								double score = iteration.getHitScore(hit);
 
-								double alignmentScore = (iteration.getHitScore(hit)-this.alignmentMinScore)/(maxScore-this.alignmentMinScore);//alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
-								//double similarityScore = iteration.getPositivesScore(hitNum);
-								//double identityScore = iteration.getIdentityScore(hitNum);
+								double alignmentScore = (score-this.alignmentMinScore)/(maxScore-this.alignmentMinScore);//alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
 
 								double bitScore = iteration.getHitBitScore(hit);
 								double eValue = iteration.getHitEvalue(hit);
@@ -285,35 +285,18 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 								double queryCoverage = iteration.getHitQueryCoverage(hitNum);//(double)(alingmentLength-iteration.getHitAlignmentGaps(hitNum))/(double)queryLength;
 								double tragetCoverage = iteration.getHiTargetCoverage(hitNum);//(double)(alingmentLength-iteration.getHitAlignmentGaps(hitNum))/(double)targetLength;
 
-//								double l1 = (double)queryLength/(double)targetLength;
-//								double l2 = (double)alingmentLength/(double)queryLength;
-//								double l3 = (double)alingmentLength/(double)targetLength;
-
-								double score = alignmentScore;//-1;
-
-								//				if(this.alignmentScoreType.equals(AlignmentScoreType.ALIGNMENT))
-								//					score = alignmentScore;
-								//				else if(this.alignmentScoreType.equals(AlignmentScoreType.IDENTITY))
-								//					score = identityScore;
-								//				else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY))
-								//					score = similarityScore;
-
-//								System.out.println(queryID+"\t"+target+"\t"+score+"\t"+specificThreshold+"\t"+iteration.getHitEvalue(hit)+"\t"+iteration.getHitBitScore(hit)
-//								+"\t"+l1);//)+"\t"+l2+"\t"+l3);
-
 								boolean go = false;
 								
-								if(isTransportersSearch){
+								if(isTransportersSearch || blastPurpose == null){
 									if(eValue<this.evalueThreshold && bitScore>this.bitScoreThreshold && Math.abs(1-queryCoverage)<=(1-queryCoverageThreshold))
 										go=true;
 								}
 								else if(blastPurpose.equals(AlignmentPurpose.ORTHOLOGS)){
-									if(score>specificThreshold)
+									if(alignmentScore>specificThreshold)
 										go=true;
 								}
 								
 								if(go){
-									//									&& Math.abs(1-l1)<=ALIGNMENT_QUERY_LEN_THRESHOLD && Math.abs(1-l2)<=QUERY_HIT_LEN_THRESHOLD){
 
 									if(this.sequencesWithoutSimilarities!=null && this.sequencesWithoutSimilarities.contains(queryID)) {
 										System.out.println("REMOVING "+queryID+" from sequencesWithoutSimilarities");
@@ -333,7 +316,9 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 									}
 
 									AlignmentCapsule alignContainer = new AlignmentCapsule(queryID, target, tcdbID, this.alignmentMatrix, score);
-
+									
+									alignContainer.setMaxScore(maxScore);
+									alignContainer.setMinScore(0);
 									alignContainer.setEvalue(eValue);
 									alignContainer.setBitScore(bitScore);
 									alignContainer.setAlignmentLength(alignmentLength);
