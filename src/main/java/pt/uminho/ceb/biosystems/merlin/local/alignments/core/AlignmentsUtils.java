@@ -3,8 +3,10 @@ package pt.uminho.ceb.biosystems.merlin.local.alignments.core;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.biojava.nbio.core.alignment.matrices.SubstitutionMatrixHelper;
@@ -14,6 +16,10 @@ import org.biojava.nbio.core.sequence.template.AbstractSequence;
 
 import pt.uminho.ceb.biosystems.merlin.utilities.containers.capsules.AlignmentCapsule;
 
+/**
+ * @author amaromorais
+ *
+ */
 public class AlignmentsUtils {
 	
 	
@@ -125,7 +131,36 @@ public class AlignmentsUtils {
 	 * @param alignmentContainerSet
 	 * @return
 	 */
-	public static Map<String,String> getOrthologsGenesMap(ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet){
+	public static Map<String,Set<String>> getOrthologsGenesMap(ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet){
+		
+		Map<String,List<AlignmentCapsule>> alignmentsMap = getAlignmentsByQuery(alignmentContainerSet);
+		
+		Map<String,Set<String>> orthologsGenesMap = new HashMap<>();
+		
+		for(String queryID : alignmentsMap.keySet()){
+			
+			List<AlignmentCapsule> containers = alignmentsMap.get(queryID);
+			
+			Set<String> orthologs = new HashSet<>();
+			
+			for(AlignmentCapsule container : containers)				
+				orthologs.add(container.getTarget());
+			
+			orthologsGenesMap.put(queryID, orthologs);
+		}
+				
+		return orthologsGenesMap;
+		
+	}
+	
+	
+	/**
+	 * return a Map<String,String> where the keys are queryGenes sequence Ids and the values are targetGenes sequence ids
+	 * 
+	 * @param alignmentContainerSet
+	 * @return
+	 */
+	public static Map<String,String> getBestOrthologsGenesMap(ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet){
 		
 		Map<String,List<AlignmentCapsule>> alignmentsMap = getAlignmentsByQuery(alignmentContainerSet);
 		
@@ -156,5 +191,51 @@ public class AlignmentsUtils {
 		
 	}
 	
+	
+	
+	/**
+	 * This method allows to run the BLAST+ from merlin, if it is installed.
+	 * outputFormat parameter comprises a integer in the range of 0 to 11.
+	 * See NCBI's BLAST+ documentation for detailed information.
+	 * 
+	 * @param queryFilePath
+	 * @param subjectFilePath
+	 * @param outputFilePath
+	 * @param outputFormat
+	 */
+	public static boolean runBlast(String queryFilePath, String subjectFilePath, String outputFilePath, Integer outputFormat){
+		
+		String outfmt = " -outfmt ";
+		if(outputFormat==null)
+			outfmt = "";
+		else
+			outfmt = outfmt.concat(Integer.toString(outputFormat));
+		
+		boolean hasBlastCompleted = false;
+		
+		try {
+
+			Process	blastProcess = Runtime.getRuntime().exec("blastp -query " + queryFilePath + " -subject " 
+					+ subjectFilePath + " -out " + outputFilePath + outfmt);
+
+			int exitValue = blastProcess.waitFor();
+
+			if (exitValue != 0) {
+				System.err.println("Abnormal BLAST process termination");
+			}
+			else{
+				System.out.println("BLAST search completed with success!");
+				hasBlastCompleted = true;
+			}
+
+			blastProcess.destroy();
+			
+		} catch (IOException | InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		return hasBlastCompleted;
+	}
 	
 }

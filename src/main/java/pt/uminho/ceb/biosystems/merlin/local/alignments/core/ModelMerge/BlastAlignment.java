@@ -32,12 +32,7 @@ import pt.uminho.ceb.biosystems.merlin.utilities.containers.capsules.AlignmentCa
  */
 public class BlastAlignment extends Observable implements ModelAlignments{
 
-//	private static final double FIXED_THRESHOLD =  1E-6;
 //	private static final double ALIGNMENT_MIN_SCORE = 0.0;
-//	private static final double BITSCORE_THRESHOLD = 50;
-//	private static final double COVERAGE_THRESHOLD = 0.20;
-//	private static final double ALIGNMENT_QUERY_LEN_THRESHOLD = 0.25;
-//	private static final double QUERY_HIT_LEN_THRESHOLD = 0.25;
 
 	private NcbiBlastParser blout;
 	private ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet;
@@ -84,7 +79,7 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 
 		this.setEvalueThreshold(1E-6);
 		this.setBitScoreThreshold(50);
-		this.setQueryCoverageThreshold(0.80);
+		this.setQueryCoverageThreshold(0.50);
 		this.setAlignmentMinScore(0);
 		this.queryFasta = queryFasta;
 		this.subjectFasta = subjectFasta;
@@ -120,7 +115,7 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 		this.setEvalueThreshold(evalueThreshold);
 		this.setBitScoreThreshold(bitScoreThreshold);
 		this.setQueryCoverageThreshold(queryCoverageThreshold);
-		this.setAlignmentMinScore(0.0);
+		this.setAlignmentMinScore(0);
 		this.queryFasta = queryFasta;
 		this.subjectFasta = subjectFasta;
 		this.threshold = treshold;
@@ -158,8 +153,6 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 				
 				outputFile.getParentFile().mkdirs();
 				
-//				System.out.println(outputFile.getAbsolutePath());
-
 				Process blastProcess = Runtime.getRuntime().exec("blastp -query " + this.queryFasta + " -subject " 
 						+ this.subjectFasta + " -out " + outputFile.getAbsolutePath() + " -outfmt 5");
 
@@ -206,17 +199,14 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 		notifyObservers();
 	}
 
+	/* (non-Javadoc)
+	 * @see pt.uminho.ceb.biosystems.merlin.local.alignments.core.ModelMerge.ModelAlignments#buildAlignmentCapsules()
+	 */
 	public void buildAlignmentCapsules(){
 
 		List<BlastIterationData> iterations = this.blout.getResults();
 
 		Map<String, Double> queriesMaxScores = AlignmentsUtils.getSequencesAlignmentMaxScoreMap(querySequences, alignmentMatrix);
-		
-//		System.out.println("querySequences----->"+querySequences);
-//		System.out.println(querySequences.keySet()+"\t"+querySequences.size());
-//		System.out.println("queriesMaxScores----->"+queriesMaxScores);
-//		System.out.println(queriesMaxScores.keySet()+"\t"+querySequences.size());
-
 		
 		for(BlastIterationData iteration : iterations){
 
@@ -251,8 +241,6 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 
 			if(this.blastPurpose==null || !this.blastPurpose.equals(AlignmentPurpose.ORTHOLOGS) || (!this.sequenceIdsSet.containsKey(queryLocus) || sequenceIdsSet.get(queryLocus).isEmpty())){
 
-//				System.out.println("QUERY----->"+queryID);
-				
 				double maxScore = queriesMaxScores.get(iteration.getQueryDef().trim());
 				double specificThreshold = this.threshold;
 				
@@ -286,21 +274,7 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 								double queryCoverage = iteration.getHitQueryCoverage(hitNum);//(double)(alingmentLength-iteration.getHitAlignmentGaps(hitNum))/(double)queryLength;
 								double tragetCoverage = iteration.getHiTargetCoverage(hitNum);//(double)(alingmentLength-iteration.getHitAlignmentGaps(hitNum))/(double)targetLength;
 
-//								double l1 = (double)queryLength/(double)targetLength;
-//								double l2 = (double)alingmentLength/(double)queryLength;
-//								double l3 = (double)alingmentLength/(double)targetLength;
-
-								double score = alignmentScore;//-1;
-
-								//				if(this.alignmentScoreType.equals(AlignmentScoreType.ALIGNMENT))
-								//					score = alignmentScore;
-								//				else if(this.alignmentScoreType.equals(AlignmentScoreType.IDENTITY))
-								//					score = identityScore;
-								//				else if(this.alignmentScoreType.equals(AlignmentScoreType.SIMILARITY))
-								//					score = similarityScore;
-
-//								System.out.println(queryID+"\t"+target+"\t"+score+"\t"+specificThreshold+"\t"+iteration.getHitEvalue(hit)+"\t"+iteration.getHitBitScore(hit)
-//								+"\t"+l1);//)+"\t"+l2+"\t"+l3);
+								double score = alignmentScore;
 
 								boolean go = false;
 								
@@ -358,9 +332,9 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 									alignContainer.setEcNumber(this.ec_number);
 									alignContainer.setClosestOrthologues(this.closestOrthologs);
 									alignContainer.setModules(modules);
-
-									//					alignContainer.setMaxScore(maxScore);
-									//					alignContainer.setMinScore(0);
+									alignContainer.setMaxScore(maxScore);
+									alignContainer.setMinScore(this.getAlignmentMinScore());
+									
 									//					alignContainer.setAlignedScore(alignedScore);
 
 									//					iterationAlignments.add(align);
