@@ -51,6 +51,7 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 	private double evalueThreshold;
 	private double bitScoreThreshold;
 	private double queryCoverageThreshold;
+	private double targetCoverageThreshold;
 	
 	private double alignmentMinScore;
 
@@ -79,7 +80,8 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 
 		this.setEvalueThreshold(1E-6);
 		this.setBitScoreThreshold(50);
-		this.setQueryCoverageThreshold(0.50);
+		this.setQueryCoverageThreshold(0.80);
+		this.setTargetCoverageThreshold(0.80);
 		this.setAlignmentMinScore(0);
 		this.queryFasta = queryFasta;
 		this.subjectFasta = subjectFasta;
@@ -109,12 +111,13 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 	 * @param jc
 	 */
 	public BlastAlignment(String queryFasta, String subjectFasta, Map<String,AbstractSequence<?>> querySequences, double treshold, double evalueThreshold,
-			double bitScoreThreshold, double queryCoverageThreshold, boolean transportersSearch, AtomicBoolean cancel, ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet, JAXBContext jc){
+			double bitScoreThreshold, double queryCoverageThreshold, double targetCoverageThreshold, boolean transportersSearch, AtomicBoolean cancel, ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet, JAXBContext jc){
 
 		
 		this.setEvalueThreshold(evalueThreshold);
 		this.setBitScoreThreshold(bitScoreThreshold);
 		this.setQueryCoverageThreshold(queryCoverageThreshold);
+		this.setTargetCoverageThreshold(targetCoverageThreshold);
 		this.setAlignmentMinScore(0);
 		this.queryFasta = queryFasta;
 		this.subjectFasta = subjectFasta;
@@ -278,7 +281,9 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 								boolean go = false;
 								
 								if(isTransportersSearch || blastPurpose==null){
-									if(eValue<this.evalueThreshold && bitScore>this.bitScoreThreshold && Math.abs(1-queryCoverage)<=(1-queryCoverageThreshold))
+									if(eValue<this.evalueThreshold && bitScore>this.bitScoreThreshold && Math.abs(1-queryCoverage)<=(1-this.queryCoverageThreshold) 
+											&& Math.abs(1-tragetCoverage)<=(1-this.targetCoverageThreshold)
+											)
 										go=true;
 								}
 								else{
@@ -446,6 +451,22 @@ public class BlastAlignment extends Observable implements ModelAlignments{
 	public void setQueryCoverageThreshold(double queryCoverageThreshold) {
 		this.queryCoverageThreshold = queryCoverageThreshold;
 	}
+
+	/**
+	 * @return the targetCoverageThreshold
+	 */
+	public double getTargetCoverageThreshold() {
+		return targetCoverageThreshold;
+	}
+
+
+	/**
+	 * @param targetCoverageThreshold the targetCoverageThreshold to set
+	 */
+	public void setTargetCoverageThreshold(double targetCoverageThreshold) {
+		this.targetCoverageThreshold = targetCoverageThreshold;
+	}
+
 
 	/**
 	 * @return the alignmentMinScore

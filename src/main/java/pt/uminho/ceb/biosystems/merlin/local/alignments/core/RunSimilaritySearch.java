@@ -106,7 +106,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 	 * @return
 	 * @throws Exception
 	 */
-	public ConcurrentLinkedQueue<AlignmentCapsule> runBlastSearch(boolean isTransportersSearch, Double eValueThreshold, Double bitScoreThreshold, Double queryCoverageThreshold) throws Exception {
+	public ConcurrentLinkedQueue<AlignmentCapsule> runBlastSearch(boolean isTransportersSearch, Double eValueThreshold, Double bitScoreThreshold, 
+			Double queryCoverageThreshold, Double targetCoverageThreshold) throws Exception {
 		
 		List<Thread> threads = new ArrayList<Thread>();
 //		ConcurrentLinkedQueue<String> queryArray = new ConcurrentLinkedQueue<String>(this.querySequences.keySet());
@@ -181,7 +182,8 @@ public class RunSimilaritySearch extends Observable implements Observer {
 			if(eValueThreshold!=null && bitScoreThreshold!=null && queryCoverageThreshold!=null){
 				
 				blastAlign = new BlastAlignment(queryFilesPaths.get(i), this.subjectFastaFilePath, queriesSubSetList.get(i), 
-						this.similarity_threshold, eValueThreshold, bitScoreThreshold, queryCoverageThreshold, isTransportersSearch, this.cancel, alignmentContainerSet, jc);
+						this.similarity_threshold, eValueThreshold, bitScoreThreshold, queryCoverageThreshold, targetCoverageThreshold, 
+						isTransportersSearch, this.cancel, alignmentContainerSet, jc);
 			}
 			else{
 				blastAlign= new BlastAlignment(queryFilesPaths.get(i), this.subjectFastaFilePath, queriesSubSetList.get(i), 
@@ -192,7 +194,9 @@ public class RunSimilaritySearch extends Observable implements Observer {
 				if(bitScoreThreshold!=null)
 					((BlastAlignment) blastAlign).setBitScoreThreshold(bitScoreThreshold);
 				if(queryCoverageThreshold!=null)
-					((BlastAlignment) blastAlign).setQueryCoverageThreshold(queryCoverageThreshold);	
+					((BlastAlignment) blastAlign).setQueryCoverageThreshold(queryCoverageThreshold);
+				if(targetCoverageThreshold!=null)
+					((BlastAlignment) blastAlign).setTargetCoverageThreshold(targetCoverageThreshold);
 			}
 			
 //			if(this.blastOutputFolderPath!=null && !this.blastOutputFolderPath.isEmpty())
