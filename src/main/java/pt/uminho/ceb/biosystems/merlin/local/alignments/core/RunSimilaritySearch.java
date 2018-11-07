@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.xml.bind.JAXBContext;
 
+import org.biojava.nbio.core.sequence.io.FastaReaderHelper;
 import org.biojava.nbio.core.sequence.template.AbstractSequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,7 @@ import pt.uminho.ceb.biosystems.merlin.local.alignments.core.ModelMerge.ModelAli
 import pt.uminho.ceb.biosystems.merlin.utilities.Enumerators.AlignmentPurpose;
 import pt.uminho.ceb.biosystems.merlin.utilities.Enumerators.AlignmentScoreType;
 import pt.uminho.ceb.biosystems.merlin.utilities.Enumerators.Method;
+import pt.uminho.ceb.biosystems.merlin.utilities.Pair;
 import pt.uminho.ceb.biosystems.merlin.utilities.blast.ncbi_blastparser.BlastOutput;
 import pt.uminho.ceb.biosystems.merlin.utilities.containers.capsules.AlignmentCapsule;
 
@@ -215,6 +217,49 @@ public class RunSimilaritySearch extends Observable implements Observer {
 		return alignmentContainerSet;
 	}
 	///////////////////////////////
+	
+	/**
+	 * @throws Exception
+	 */
+	public Pair<ConcurrentLinkedQueue<AlignmentCapsule>,ConcurrentLinkedQueue<AlignmentCapsule>> runBBBlastHits(String queryGenomeFilePath, 
+			String subjectGenomeFilePath, boolean isTransportersSearch, Double eValueThreshold, Double bitScoreThreshold, 
+			Double queryCoverageThreshold, Double targetCoverageThreshold) throws Exception{
+		
+		String bbhBlastFolderPath = this.getWorkspaceTaxonomyFolderPath().concat("BBH_Blast/");
+		File firstBlastFolder = new File(bbhBlastFolderPath.concat("Blast1/"));
+		firstBlastFolder.mkdirs();
+		
+		this.setWorkspaceTaxonomyFolderPath(firstBlastFolder.getAbsolutePath());
+		this.setSubjectFastaFilePath(subjectGenomeFilePath);
+
+		File subjectGenomeFastaFile = new File(this.subjectFastaFilePath);
+		ConcurrentHashMap<String, AbstractSequence<?>> secondBlastQuerySequences= new ConcurrentHashMap<String, AbstractSequence<?>>();
+		secondBlastQuerySequences.putAll(FastaReaderHelper.readFastaProteinSequence(subjectGenomeFastaFile));
+		
+		Map<String, AbstractSequence<?>> secondBlastSubjectSequences = new HashMap<>(this.querySequences);
+		
+		Pair<ConcurrentLinkedQueue<AlignmentCapsule>,ConcurrentLinkedQueue<AlignmentCapsule>> bbHits = new Pair<>(null, null);
+		ConcurrentLinkedQueue<AlignmentCapsule> alignmentContainerSet = new ConcurrentLinkedQueue<>();
+		
+		//First similiarity search//
+		alignmentContainerSet =  this.runBlastSearch(false,eValueThreshold,bitScoreThreshold,queryCoverageThreshold,targetCoverageThreshold);
+		bbHits.setA(alignmentContainerSet);
+		
+		//Second similarity search//
+		this.querySequences = secondBlastQuerySequences;
+		this.staticGenesSet = secondBlastSubjectSequences;
+		this.setSubjectFastaFilePath(queryGenomeFilePath);
+		File secondBlastFolder = new File(bbhBlastFolderPath.concat("Blast2/"));
+		secondBlastFolder.mkdirs();
+		this.setWorkspaceTaxonomyFolderPath(secondBlastFolder.getAbsolutePath());
+		
+		alignmentContainerSet =  this.runBlastSearch(false,eValueThreshold,bitScoreThreshold,queryCoverageThreshold,targetCoverageThreshold);
+		bbHits.setB(alignmentContainerSet);
+		
+		/////////////////
+		
+		return bbHits;
+	}
 	
 	
 	/**

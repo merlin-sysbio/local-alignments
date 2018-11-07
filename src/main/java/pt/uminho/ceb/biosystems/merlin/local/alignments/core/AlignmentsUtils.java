@@ -7,13 +7,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.biojava.nbio.core.alignment.matrices.SubstitutionMatrixHelper;
 import org.biojava.nbio.core.alignment.template.SubstitutionMatrix;
 import org.biojava.nbio.core.sequence.compound.AminoAcidCompound;
+import org.biojava.nbio.core.sequence.io.FastaReaderHelper;
 import org.biojava.nbio.core.sequence.template.AbstractSequence;
 
+import pt.uminho.ceb.biosystems.merlin.utilities.Pair;
 import pt.uminho.ceb.biosystems.merlin.utilities.containers.capsules.AlignmentCapsule;
 
 /**
@@ -236,6 +240,74 @@ public class AlignmentsUtils {
 		}
 		
 		return hasBlastCompleted;
+	}
+	
+	
+	/**
+	 * @param bbHits
+	 * @return
+	 */
+	public static Map<String, Set<String>> processBidirectionalBestHits(Pair<ConcurrentLinkedQueue<AlignmentCapsule>,ConcurrentLinkedQueue<AlignmentCapsule>> bbHits){
+		
+		Map<String, Set<String>> queryGenomeOrthologsMap = AlignmentsUtils.getOrthologsGenesMap(bbHits.getA());
+		Map<String, Set<String>> subjectGenomeOrthologsMap = AlignmentsUtils.getOrthologsGenesMap(bbHits.getB());
+		
+		return intersectBidirectionalBestHitsMaps(queryGenomeOrthologsMap,subjectGenomeOrthologsMap);
+	}
+
+	
+	/**
+	 * @param genesHomologousMap1
+	 * @param genesHomologousMap2
+	 * @return
+	 */
+	public static Map<String, Set<String>> intersectBidirectionalBestHitsMaps(Map<String,Set<String>> genesHomologousMap1, Map<String,Set<String>> genesHomologousMap2){
+		
+		Map<String, Set<String>> genesHomologousMapFiltered = new TreeMap<>();
+
+		for(String queryGene : genesHomologousMap1.keySet()){
+
+			Set<String> homologousGenes = genesHomologousMap1.get(queryGene);
+
+			if(homologousGenes!=null && !homologousGenes.isEmpty()){
+
+				for(String homolog : homologousGenes){
+
+					if(genesHomologousMap2.containsKey(homolog)){
+
+						if(genesHomologousMap2.get(homolog).contains(queryGene)){
+
+							if(genesHomologousMapFiltered.containsKey(queryGene)){
+								genesHomologousMapFiltered.get(queryGene).add(homolog);
+							}
+							else{
+								Set<String> homologousSet = new HashSet<>();
+								homologousSet.add(homolog);
+								genesHomologousMapFiltered.put(queryGene, homologousSet);
+							}
+						}
+					}
+
+				}
+			}
+		}
+		
+		return genesHomologousMapFiltered;
+	}
+	
+	
+	/**
+	 * @param target
+	 * @param listOfMatches
+	 * @return
+	 */
+	public static AlignmentCapsule getAlignmentCapsule(String target, List<AlignmentCapsule> listOfMatches){
+		
+		for(AlignmentCapsule alignment : listOfMatches)
+			if(alignment.getTarget().equals(target))
+				return alignment;
+		
+		return null;
 	}
 	
 }
