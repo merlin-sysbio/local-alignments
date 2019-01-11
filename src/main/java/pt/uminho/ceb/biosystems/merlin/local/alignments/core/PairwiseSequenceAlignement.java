@@ -232,7 +232,7 @@ public class PairwiseSequenceAlignement extends Observable implements Runnable {
 
 								double alignmentScore = alignmentMethod.getSimilarity(); //(((double)alignmentMethod.getScore()-alignmentMethod.getMinScore())/(alignmentMethod.getMaxScore()-alignmentMethod.getMinScore()))
 								double similarityScore = ((double)alignmentMethod.getPair().getNumSimilars()/alignmentMethod.getPair().getLength());
-								double identityScore = alignmentMethod.getPair().getPercentageOfIdentity();//((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
+								double identityScore = alignmentMethod.getPair().getPercentageOfIdentity(true);//((double)alignmentMethod.getPair().getNumIdenticals()/alignmentMethod.getPair().getLength());
 
 								
 								double alignmentTypScore = -1;
