@@ -21,18 +21,11 @@
  	    <repository>
 			<id>nexus</id>
 			<name>Nexus BioSystems Server</name>
-			<!-- <url>http://192.168.1.99/nexus/content/groups/public/</url> -->
-			<!-- <url>http://193.137.11.210/nexus/content/groups/public/</url> -->
-			<url>https://www.bio.di.uminho.pt/nexus/content/groups/public/</url>
+			<url>https://nexus.bio.di.uminho.pt/content/repositories/</url>
 		</repository> 
   </repositories> 
 
-	<!-- <build> <sourceDirectory>D:\workspaces\maven\local-alignments\src</sourceDirectory> 
-		<scriptSourceDirectory>D:\workspaces\maven\local-alignments\src\main\scripts</scriptSourceDirectory> 
-		<testSourceDirectory>D:\workspaces\maven\local-alignments\test</testSourceDirectory> 
-		<outputDirectory>D:\workspaces\maven\local-alignments\bin\</outputDirectory> 
-		<testOutputDirectory>D:\workspaces\maven\local-alignments\test-bin</testOutputDirectory> 
-		</build> -->
+
 	<build>
 		<plugins>
 			<plugin>
@@ -40,10 +33,6 @@
 				<artifactId>nexus-staging-maven-plugin</artifactId>
 				<version>1.6.6</version>
 				<extensions>true</extensions>
-				<!-- <configuration>
-					<serverId>watson</serverId>
-					<nexusUrl>http://193.137.11.210/nexus/</nexusUrl>
-				</configuration> -->
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -84,13 +73,11 @@
 	<distributionManagement>
 		<snapshotRepository>
 			<id>biosystems-snapshots</id>
-			<!-- <url>http://192.168.1.99/nexus/content/repositories/biosystems-snapshots</url> -->
-			<url>http://193.137.11.210/nexus/content/repositories/biosystems-snapshots</url>
+			<url>https://nexus.bio.di.uminho.pt/content/repositories/biosystems-snapshots</url>
 		</snapshotRepository>
 		<repository>
 			<id>biosystems-releases</id>
-			<!-- <url>http://192.168.1.99/nexus/content/repositories/biosystems-releases</url> -->
-			<url>http://193.137.11.210/nexus/content/repositories/biosystems-releases</url>
+			<url>https://nexus.bio.di.uminho.pt/content/repositories/biosystems-releases</url>
 		</repository>
 	</distributionManagement>
 
